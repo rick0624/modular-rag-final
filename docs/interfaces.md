@@ -72,13 +72,14 @@ indexing 的 `fields` 決定寫入索引的欄位與名稱。自訂欄位不可�
    `incremental: true` 且被 embed 的自訂欄位不在 `fields` 白名單時
    也報錯(欄位須寫入索引才能在下次 ingest 比對)。
 
-## 5. 服務模式要點
+## 5. 分階段執行要點
 
 - **索引內容必須與 ingestion 設定一致**:ingestion 區塊(含 custom .py
-  檔內容)取雜湊為指紋,存於索引旁;`/reload` 指紋不符 → 409,
-  ingestion 設定變更一律走 `/ingest`(全量重建)。
-- `/reload` 只重建 inference(索引沿用);inference 端 custom 檔案改動
-  重載即生效。
+  檔內容)取雜湊為指紋,存於索引旁;`--stage inference` 啟動時比對,
+  不符即報錯。ingestion 設定變更後,一律重跑 `--stage ingestion`
+  全量重建索引(詳見 [operations.md](operations.md) 第 1 節)。
+- inference 端的設定(改寫、重排、prompt…)不進指紋;改完重跑
+  `--stage inference`(或重建 pipeline)即生效,索引沿用。
 
 ## 6. 新需求怎麼接
 
