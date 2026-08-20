@@ -200,7 +200,7 @@ class TestConfigFilesParse:
         config = load_config(CONFIGS_DIR / "smoke.yaml", dotenv_path=None)
         assert config.inference.fusion.group_by == "doc"
 
-    def test_company_yaml_parses_with_env(self, monkeypatch):
+    def test_custom_yaml_parses_with_env(self, monkeypatch):
         monkeypatch.setenv("ES_URL", "http://localhost:9200")
         monkeypatch.setenv("COMPANY_EMBEDDING_API_KEY", "k1")
         monkeypatch.setenv("COMPANY_LLM_API_KEY", "k2")
@@ -235,7 +235,7 @@ class TestConfigFilesParse:
         ]
         assert config.inference.fusion.top_k == 3
 
-    def test_company_yaml_fails_loud_without_env(self, monkeypatch):
+    def test_custom_yaml_fails_loud_without_env(self, monkeypatch):
         monkeypatch.delenv("ES_URL", raising=False)
         monkeypatch.delenv("COMPANY_EMBEDDING_API_KEY", raising=False)
         monkeypatch.delenv("COMPANY_LLM_API_KEY", raising=False)

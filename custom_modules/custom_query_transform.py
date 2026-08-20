@@ -13,8 +13,8 @@
       method: [normalize, custom]     # custom 可放在方法鏈中
       method_params:
         custom:
-          file: examples/custom_modules/company_query_transform.py
-          class: CompanyQueryExpander
+          file: custom_modules/custom_query_transform.py
+          class: CustomQueryExpander
 """
 
 from __future__ import annotations
@@ -37,7 +37,7 @@ _DEFAULT_SYNONYMS: dict[str, str] = {
 
 
 @component
-class CompanyQueryExpander:
+class CustomQueryExpander:
     """以公司詞庫擴充查詢,必要時再拆成多條子查詢。
 
     Args:
@@ -75,7 +75,7 @@ class CompanyQueryExpander:
                 if rewritten not in expanded:
                     expanded.append(rewritten)
         result = expanded[: self.max_queries] or list(queries)
-        logger.debug("CompanyQueryExpander:%s → %s", queries, result)
+        logger.debug("CustomQueryExpander:%s → %s", queries, result)
         return {"queries": result}
 
     def _split(self, query: str) -> list[str]:

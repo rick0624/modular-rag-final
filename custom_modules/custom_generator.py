@@ -19,8 +19,8 @@ LLM 常常不是 OpenAI 相容格式(欄位名不同、要帶專案代號、回�
     generation:
       method: custom
       params:
-        file: examples/custom_modules/company_generator.py
-        class: CompanyLLMGenerator
+        file: custom_modules/custom_generator.py
+        class: CustomLLMGenerator
         init_params:
           endpoint: https://llm.example.com/v1/completions   # 不設 = 離線示範
         # prompt_template / system_prompt 與內建方法同款(選填)
@@ -37,11 +37,11 @@ from haystack.dataclasses import ChatMessage
 
 # logger 命名在 "rag.*" 底下:file: 與 class_path: 兩種載入方式都吃得到
 # 框架的 log 檔設定(見 README「自訂方法」的「log 要看得到」)。
-logger = logging.getLogger("rag.custom.company_generator")
+logger = logging.getLogger("rag.custom.generator")
 
 
 @component
-class CompanyLLMGenerator:
+class CustomLLMGenerator:
     """呼叫公司推論服務並回傳單一回覆。
 
     Args:
@@ -78,17 +78,17 @@ class CompanyLLMGenerator:
         if self.endpoint is None:
             answer, extra_meta = self._offline_reply(messages), {"offline": True}
         else:
-            answer, extra_meta = self._call_company_llm(messages)
+            answer, extra_meta = self._call_llm_api(messages)
         meta: dict[str, Any] = {
-            "model": self.model or "company-llm",
+            "model": self.model or "demo-llm",
             "finish_reason": "stop",
             "latency_ms": (time.perf_counter() - started) * 1000,
             **extra_meta,
         }
-        logger.debug("CompanyLLMGenerator:%d 則訊息 → %d 字", len(messages), len(answer))
+        logger.debug("CustomLLMGenerator:%d 則訊息 → %d 字", len(messages), len(answer))
         return {"replies": [ChatMessage.from_assistant(answer, meta=meta)]}
 
-    def _call_company_llm(
+    def _call_llm_api(
         self, messages: list[ChatMessage]
     ) -> tuple[str, dict[str, Any]]:
         """TODO(替換點):換成公司推論服務的真正呼叫。
@@ -116,8 +116,8 @@ class CompanyLLMGenerator:
         現場才查得下去。
         """
         raise NotImplementedError(
-            f"CompanyLLMGenerator 尚未接上真正的推論服務(endpoint={self.endpoint});"
-            "請在 _call_company_llm 換入公司 API 的呼叫,"
+            f"CustomLLMGenerator 尚未接上真正的推論服務(endpoint={self.endpoint});"
+            "請在 _call_llm_api 換入公司 API 的呼叫,"
             "或移除 init_params.endpoint 走離線示範回覆"
         )
 

@@ -1,5 +1,5 @@
 # Ingestion custom module 示範配置:import / parsing(鏈首 converter)/
-# chunking 三個槽位都掛 examples/custom_modules/ 下的自訂元件 ——
+# chunking 三個槽位都掛 custom_modules/ 下的自訂元件 ——
 # 模擬「文件來自公司 API(不落地成檔案)、信封格式自行解析、切塊照
 # 公司規則」的完整路徑。inference 端刻意全用內建方法,檢索的就是
 # custom ingestion 建出來的本地索引。
@@ -22,8 +22,8 @@ ingestion:
     method: custom                  # 契約:無輸入 → sources + meta(必帶 doc_id)
     method_params:
       custom:
-        file: examples/custom_modules/company_importer.py
-        class: CompanyApiImporter
+        file: custom_modules/custom_importer.py
+        class: CustomApiImporter
         content_type: text          # 供與 parsing 的相容性檢查;省略 = 跳過
         # init_params:
         #   base_url: https://km.example.com/api   # 接真服務時設定
@@ -32,8 +32,8 @@ ingestion:
     method: custom                  # 鏈首 converter:sources + meta → documents
     method_params:
       custom:
-        file: examples/custom_modules/company_parser.py
-        class: CompanyPayloadParser
+        file: custom_modules/custom_parser.py
+        class: CustomPayloadParser
         kind: converter             # 放鏈首必須宣告(預設 doc_processor 只能放鏈中)
         # input_content_types: [text]   # 供與 import 的相容性檢查;省略 = 全收
         # produces_pages: false     # 產生頁界時設 true(page_based chunking 的前提)
@@ -42,8 +42,8 @@ ingestion:
     method: custom                  # 契約:documents → documents(meta 逐塊複製)
     method_params:
       custom:
-        file: examples/custom_modules/company_chunker.py
-        class: CompanySentenceChunker
+        file: custom_modules/custom_chunker.py
+        class: CustomSentenceChunker
         init_params:
           max_chars: 120
         # requires_pages: false     # 需要頁界時設 true

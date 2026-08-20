@@ -22,8 +22,8 @@ group_by)不夠用 —— 例如要按部門加權、同一份文件只留最新
     fusion:
       method: custom
       params:
-        file: examples/custom_modules/company_fusion.py
-        class: CompanyFusion
+        file: custom_modules/custom_fusion.py
+        class: CustomFusion
         init_params:
           top_k: 3
 """
@@ -39,13 +39,13 @@ from haystack.dataclasses import Document
 
 # logger 命名在 "rag.*" 底下:file: 與 class_path: 兩種載入方式都吃得到
 # 框架的 log 檔設定(見 README「自訂方法」的「log 要看得到」)。
-logger = logging.getLogger("rag.custom.company_fusion")
+logger = logging.getLogger("rag.custom.fusion")
 
 _RRF_K = 60  # RRF 的名次平滑常數(業界慣用 60)
 
 
 @component
-class CompanyFusion:
+class CustomFusion:
     """RRF 名次融合 + chunk_id 去重(公司邏輯的替換起點)。
 
     Args:
@@ -91,7 +91,7 @@ class CompanyFusion:
             for group in ranked[: self.top_k]
         ]
         logger.debug(
-            "CompanyFusion:%d 路 → %d 筆(top_k=%d)",
+            "CustomFusion:%d 路 → %d 筆(top_k=%d)",
             len(results), len(fused), self.top_k,
         )
         return {"documents": fused, "applied": True}

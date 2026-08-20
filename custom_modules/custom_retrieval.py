@@ -13,8 +13,8 @@
     retrieval:
       method: custom
       params:
-        file: examples/custom_modules/company_retrieval.py
-        class: CompanyRetriever
+        file: custom_modules/custom_retrieval.py
+        class: CustomRetriever
         init_params: {top_k: 5}
 """
 
@@ -28,7 +28,7 @@ from haystack.dataclasses import Document
 
 # logger 命名在 "rag.*" 底下:file: 與 class_path: 兩種載入方式都吃得到
 # 框架的 log 檔設定(見 README「自訂方法」的「log 要看得到」)。
-logger = logging.getLogger("rag.custom.company_retrieval")
+logger = logging.getLogger("rag.custom.retrieval")
 
 # 模擬的公司知識庫(TODO(替換點):接上真正的服務後整段刪除)。
 _FAKE_CORPUS: list[dict[str, Any]] = [
@@ -60,7 +60,7 @@ _FAKE_CORPUS: list[dict[str, Any]] = [
 
 
 @component
-class CompanyRetriever:
+class CustomRetriever:
     """呼叫公司檢索服務,把回應映射成 ``list[Document]``。
 
     Args:
@@ -123,5 +123,5 @@ class CompanyRetriever:
             )
             for position, hit in enumerate(hits)
         ]
-        logger.debug("CompanyRetriever:%r → %d 筆", query, len(documents))
+        logger.debug("CustomRetriever:%r → %d 筆", query, len(documents))
         return {"documents": documents}

@@ -1,4 +1,4 @@
-"""configs/custom_ingestion_demo.yaml + examples/custom_modules/ 的端到端回歸。
+"""configs/custom_ingestion_demo.yaml + custom_modules/ 的端到端回歸。
 
 ingestion 三槽位(import / parsing 鏈首 / chunking)全掛 custom 的示範
 —— 範例檔或 config 壞掉時本測試即紅,保證骨架永遠可跑。載入的是 repo
@@ -25,7 +25,7 @@ def test_custom_ingestion_demo_end_to_end(monkeypatch):
 
     # 三個 custom 元件都真的在 pipeline 裡跑過(以類別名驗證)
     types = {entry["type"] for entry in result["trace"]}
-    assert {"CompanyApiImporter", "CompanyPayloadParser", "CompanySentenceChunker"} <= types
+    assert {"CustomApiImporter", "CustomPayloadParser", "CustomSentenceChunker"} <= types
     assert result["writer"]["documents_written"] > 0
     assert result["empty_sources"] == []
     format_ingestion_trace(result["trace"])  # 排版不炸

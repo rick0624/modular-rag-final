@@ -1,6 +1,6 @@
 # Custom module 示範配置:query_transformation / retrieval / reranking /
 # routing / generation / fusion 以及 parsing 鏈中的文件處理器都掛
-# examples/custom_modules/ 下的自訂元件(公司系統整合的骨架)。
+# custom_modules/ 下的自訂元件(公司系統整合的骨架)。
 # ingestion 端(import / parsing 鏈首 / chunking)的 custom 示範另見
 # configs/custom_ingestion_demo.yaml。
 #
@@ -32,8 +32,8 @@ ingestion:
     method_params:
       plain_text: {}
       custom:
-        file: examples/custom_modules/company_parser.py
-        class: CompanyBoilerplateCleaner
+        file: custom_modules/custom_parser.py
+        class: CustomBoilerplateCleaner
         # kind: doc_processor       # 預設;鏈首 converter 見 custom_ingestion_demo
         # init_params:
         #   patterns: [本文件為公司內部機密]
@@ -58,8 +58,8 @@ inference:
       normalize:
         lowercase: true
       custom:
-        file: examples/custom_modules/company_query_transform.py
-        class: CompanyQueryExpander
+        file: custom_modules/custom_query_transform.py
+        class: CustomQueryExpander
         init_params:
           max_queries: 3
           # synonyms:               # 不設定時用範例內建詞庫
@@ -69,8 +69,8 @@ inference:
     method: custom                  # 契約:query: str → documents: list[Document]
     method_params:
       custom:
-        file: examples/custom_modules/company_retrieval.py
-        class: CompanyRetriever
+        file: custom_modules/custom_retrieval.py
+        class: CustomRetriever
         init_params:
           top_k: 5
           # endpoint: https://km.example.com/api/search   # 接真服務時設定
@@ -79,7 +79,7 @@ inference:
     method: custom                  # 契約:query + documents → documents
     method_params:
       custom:
-        file: examples/custom_modules/company_reranker.py
+        file: custom_modules/custom_reranker.py
         class: KeywordOverlapReranker
         init_params:
           top_k: 3
@@ -88,14 +88,14 @@ inference:
     method: custom                  # 契約:messages: list[ChatMessage]
     method_params:                  #      → replies: list[ChatMessage]
       custom:
-        file: examples/custom_modules/company_generator.py
-        class: CompanyLLMGenerator
+        file: custom_modules/custom_generator.py
+        class: CustomLLMGenerator
         # prompt 仍由框架組(這兩個選項與內建方法同款):
         system_prompt: 你是公司內部知識庫的助理,只根據提供的內容回答。
         # prompt_template: |        # 不設定時用內建模板
         #   ...
         init_params:
-          model: company-llm-v1
+          model: demo-llm-v1
           # endpoint: https://llm.example.com/v1/completions  # 設了就走真服務
                                     # OpenAI 相容的閘道不必寫 custom,
                                     # 直接用 gateway_openai_compatible(見 company.yaml)
@@ -104,8 +104,8 @@ inference:
     method: custom                  # 契約:results: list[list[Document]]
     params:                         #      → documents: list[Document]
       # (fusion 槽位只支援 params,無 method_params 分區)
-      file: examples/custom_modules/company_fusion.py
-      class: CompanyFusion
+      file: custom_modules/custom_fusion.py
+      class: CustomFusion
       init_params:
         top_k: 3
     # 注意:掛了 custom 就一律執行(單一查詢也進元件);內建融合改寫
@@ -115,8 +115,8 @@ inference:
     method: custom                  # 進 query() 輸出的 output 鍵(省略 = None)
     method_params:                  # 契約:documents + query → payload: Any
       custom:
-        file: examples/custom_modules/company_formatter.py
-        class: CompanyResponseBuilder
+        file: custom_modules/custom_formatter.py
+        class: CustomResponseBuilder
         # init_params:
         #   include_content: true
 
@@ -124,8 +124,8 @@ inference:
     method: custom                  # 契約:query: str → route: dict
     method_params:
       custom:
-        file: examples/custom_modules/company_router.py
-        class: CompanyQuestionRouter
+        file: custom_modules/custom_router.py
+        class: CustomQuestionRouter
         # init_params:
         #   rules:                  # 不設定時用範例內建規則
         #     人資/差勤: [請假, 特休, 薪資]

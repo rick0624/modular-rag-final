@@ -135,12 +135,12 @@ class TestCustomModuleLogging:
         component = instantiate_custom(
             "query_transformation",
             CustomModuleParams(
-                file="examples/custom_modules/company_query_transform.py",
-                **{"class": "CompanyQueryExpander"},
+                file="custom_modules/custom_query_transform.py",
+                **{"class": "CustomQueryExpander"},
             ),
         )
         component.run(queries=["請假規則?"])
-        assert "CompanyQueryExpander" in path.read_text(encoding="utf-8")
+        assert "CustomQueryExpander" in path.read_text(encoding="utf-8")
 
 
 class TestWarningTally:

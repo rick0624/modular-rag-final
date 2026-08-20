@@ -1,4 +1,4 @@
-"""configs/custom_demo.yaml + examples/custom_modules/ 的端到端回歸(五個槽位)。
+"""configs/custom_demo.yaml + custom_modules/ 的端到端回歸(五個槽位)。
 
 這組範例是使用者帶去公司整合的骨架 —— 範例檔或示範 config 壞掉時
 本測試即紅,保證骨架永遠可跑。載入的是 repo 中**真正的**檔案,
@@ -53,20 +53,20 @@ def test_custom_demo_end_to_end(corpus_dir, monkeypatch):
 
     # custom generation:骨架的離線回覆 + meta 帶出來
     assert result["answer"].startswith("[公司 LLM 骨架回答]")
-    assert result["reply_meta"]["model"] == "company-llm-v1"
+    assert result["reply_meta"]["model"] == "demo-llm-v1"
     assert result["reply_meta"]["offline"] is True
     # prompt 仍由框架組:YAML 的 system_prompt 有進去
     assert "你是公司內部知識庫的助理" in result["prompt"]
 
     # custom fusion:一律執行(applied 由骨架回報)且 RRF 標記進 meta
     fusion = pipelines.inference.get_component("fusion")
-    assert type(fusion).__name__ == "CompanyFusion"
+    assert type(fusion).__name__ == "CustomFusion"
     assert result["trace"]["fusion"]["applied"] is True
     assert all("num_merged" in doc.meta for doc in documents)
 
     # custom parsing(鏈中文件處理器):cleaner 掛在 parser 之後
     parser_2 = pipelines.ingestion.get_component("parser_2")
-    assert type(parser_2).__name__ == "CompanyBoilerplateCleaner"
+    assert type(parser_2).__name__ == "CustomBoilerplateCleaner"
 
     # custom formatter:公司信封進 output 鍵,欄位來自 retriever 塞的 meta
     envelope = result["output"]

@@ -216,7 +216,7 @@ def validate_component_contract(slot: str, instance: Any, *, where: str) -> None
         slot: 槽位名稱(必須存在於 :data:`SLOT_CONTRACTS`)。
         instance: 已實例化的元件。
         where: 錯誤訊息前綴,如
-            ``"模組 'reranking' 方法 'custom'(類別 CompanyReranker)"``。
+            ``"模組 'reranking' 方法 'custom'(類別 CustomReranker)"``。
 
     Raises:
         ConfigError: 元件不是 Haystack component、缺少契約 sockets、

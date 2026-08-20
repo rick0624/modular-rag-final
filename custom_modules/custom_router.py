@@ -12,8 +12,8 @@ routing 是獨立支線 —— 吃「原始」查詢、結果附加在 ``query()
     routing:
       method: custom
       params:
-        file: examples/custom_modules/company_router.py
-        class: CompanyQuestionRouter
+        file: custom_modules/custom_router.py
+        class: CustomQuestionRouter
 """
 
 from __future__ import annotations
@@ -25,7 +25,7 @@ from haystack import component
 
 # logger 命名在 "rag.*" 底下:file: 與 class_path: 兩種載入方式都吃得到
 # 框架的 log 檔設定(見 README「自訂方法」的「log 要看得到」)。
-logger = logging.getLogger("rag.custom.company_router")
+logger = logging.getLogger("rag.custom.router")
 
 # 示範規則(TODO(替換點):接上真正的分類邏輯後刪除)。
 _DEFAULT_RULES: dict[str, list[str]] = {
@@ -35,7 +35,7 @@ _DEFAULT_RULES: dict[str, list[str]] = {
 
 
 @component
-class CompanyQuestionRouter:
+class CustomQuestionRouter:
     """依 domain knowhow 判斷查詢類別。
 
     Args:
@@ -81,5 +81,5 @@ class CompanyQuestionRouter:
             ),
             "matched_keywords": best_matched,
         }
-        logger.debug("CompanyQuestionRouter:%r → %s", query, route)
+        logger.debug("CustomQuestionRouter:%r → %s", query, route)
         return {"route": route}

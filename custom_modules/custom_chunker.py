@@ -22,8 +22,8 @@
     chunking:
       method: custom
       params:
-        file: examples/custom_modules/company_chunker.py
-        class: CompanySentenceChunker
+        file: custom_modules/custom_chunker.py
+        class: CustomSentenceChunker
         init_params:
           max_chars: 120
         # requires_pages: false     # 需要頁界時設 true
@@ -39,11 +39,11 @@ from haystack.dataclasses import Document
 
 # logger 命名在 "rag.*" 底下:file: 與 class_path: 兩種載入方式都吃得到
 # 框架的 log 檔設定(見 README「自訂方法」的「log 要看得到」)。
-logger = logging.getLogger("rag.custom.company_chunker")
+logger = logging.getLogger("rag.custom.chunker")
 
 
 @component
-class CompanySentenceChunker:
+class CustomSentenceChunker:
     """按句號切句、貪婪打包到字元上限(公司切塊邏輯的替換起點)。
 
     Args:
@@ -68,7 +68,7 @@ class CompanySentenceChunker:
                 # meta 逐塊複製:doc_id 在裡面,stamper 靠它編 chunk_id
                 chunks.append(Document(content=piece, meta=dict(doc.meta)))
         logger.debug(
-            "CompanySentenceChunker:%d 份文件 → %d 個切片", len(documents), len(chunks)
+            "CustomSentenceChunker:%d 份文件 → %d 個切片", len(documents), len(chunks)
         )
         return {"documents": chunks}
 

@@ -32,7 +32,7 @@ def _payload(*pairs):
 
 
 class TestRequestBody:
-    def test_default_fields_match_company_api(self):
+    def test_default_fields_match_custom_api(self):
         client = FakeClient([FakeResponse(payload=_payload((0, 0.9)))])
         _ranker(client, model="rerank-v1").run(query="問題", documents=_docs())
         assert client.calls[0]["json"] == {

@@ -22,8 +22,8 @@
     import:
       method: custom
       params:
-        file: examples/custom_modules/company_importer.py
-        class: CompanyApiImporter
+        file: custom_modules/custom_importer.py
+        class: CustomApiImporter
         content_type: text        # 供與 parsing 的相容性檢查;省略 = 跳過
         # init_params:
         #   base_url: https://km.example.com/api
@@ -40,7 +40,7 @@ from haystack.dataclasses import ByteStream
 
 # logger 命名在 "rag.*" 底下:file: 與 class_path: 兩種載入方式都吃得到
 # 框架的 log 檔設定(見 README「自訂方法」的「log 要看得到」)。
-logger = logging.getLogger("rag.custom.company_importer")
+logger = logging.getLogger("rag.custom.importer")
 
 # 示範用的假 API 回應(TODO(替換點):接上真正的來源後刪除)。
 _FAKE_API_DOCUMENTS: list[dict[str, str]] = [
@@ -65,7 +65,7 @@ _FAKE_API_DOCUMENTS: list[dict[str, str]] = [
 
 
 @component
-class CompanyApiImporter:
+class CustomApiImporter:
     """從公司 API 拉文件,輸出 ByteStream sources 與帶 doc_id 的 meta。
 
     Args:
@@ -123,12 +123,12 @@ class CompanyApiImporter:
                     "importer": "custom",
                 }
             )
-        logger.debug("CompanyApiImporter:載入 %d 份文件", len(sources))
+        logger.debug("CustomApiImporter:載入 %d 份文件", len(sources))
         return {"sources": sources, "meta": meta}
 
     def _fetch_rows(self) -> list[dict[str, str]]:
         raise NotImplementedError(
-            f"CompanyApiImporter 尚未接上真正的文件 API(base_url={self.base_url});"
+            f"CustomApiImporter 尚未接上真正的文件 API(base_url={self.base_url});"
             "請在 _fetch_rows 換入公司 API 的呼叫,"
             "或移除 init_params.base_url 走離線示範文件"
         )

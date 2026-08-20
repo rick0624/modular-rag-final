@@ -303,7 +303,7 @@ parsing 的 `kind` 等)見各槽位表格。
 
 - **`custom` 是統一的掛載機制**:每個支援的槽位都可用
   `file` + `class`(或 `class_path`)載入自寫的 Haystack `@component`,
-  契約見 interfaces.md §1;範例骨架在 `examples/custom_modules/`,
+  契約見 interfaces.md §1;範例骨架在 `custom_modules/`,
   完整掛載示範見 `configs/custom_demo.yaml`(inference 端)與
   `configs/custom_ingestion_demo.yaml`(ingestion 端)。
 - **LLM 類方法**(`llm_rewrite` / `llm_decompose` / `llm_multi_hyde` /

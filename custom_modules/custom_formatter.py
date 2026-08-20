@@ -22,8 +22,8 @@ canonical 的 ``documents`` 等鍵照舊(evaluation / trace 不受影響)。
     formatter:
       method: custom
       params:
-        file: examples/custom_modules/company_formatter.py
-        class: CompanyResponseBuilder
+        file: custom_modules/custom_formatter.py
+        class: CustomResponseBuilder
         # init_params:
         #   include_content: true
 """
@@ -38,11 +38,11 @@ from haystack.dataclasses import Document
 
 # logger 命名在 "rag.*" 底下:file: 與 class_path: 兩種載入方式都吃得到
 # 框架的 log 檔設定(見 README「自訂方法」的「log 要看得到」)。
-logger = logging.getLogger("rag.custom.company_formatter")
+logger = logging.getLogger("rag.custom.formatter")
 
 
 @component
-class CompanyResponseBuilder:
+class CustomResponseBuilder:
     """把最終結果組成公司回應信封(替換起點)。
 
     Args:
@@ -77,7 +77,7 @@ class CompanyResponseBuilder:
             "returnData": rows,
         }
         logger.debug(
-            "CompanyResponseBuilder:%d 筆文件 → 信封(totalCount=%d)",
+            "CustomResponseBuilder:%d 筆文件 → 信封(totalCount=%d)",
             len(documents), len(rows),
         )
         return {"payload": payload}

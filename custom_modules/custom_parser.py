@@ -5,10 +5,10 @@
 
 - **鏈首 converter**(``kind: converter``):``sources + meta → documents``
   —— 解析公司自有格式(JSON 信封、專有標記…)。本檔的
-  :class:`CompanyPayloadParser`。
+  :class:`CustomPayloadParser`。
 - **鏈中文件處理器**(``kind: doc_processor``,預設):``documents →
   documents`` —— 清理、去樣板、富化 meta。本檔的
-  :class:`CompanyBoilerplateCleaner`。
+  :class:`CustomBoilerplateCleaner`。
 
 一條鏈只能有一個 ``custom``(method_params 以方法名稱分區);兩種都
 需要時把邏輯合併成一個元件,或一邊改走內建方法。
@@ -19,8 +19,8 @@
     parsing:
       method: custom
       params:
-        file: examples/custom_modules/company_parser.py
-        class: CompanyPayloadParser
+        file: custom_modules/custom_parser.py
+        class: CustomPayloadParser
         kind: converter
         # input_content_types: [text]   # 供與 import 的相容性檢查;省略 = 全收
         # produces_pages: false         # 產生頁界時設 true(page_based 的前提)
@@ -30,8 +30,8 @@
       method: [plain_text, custom]
       method_params:
         custom:
-          file: examples/custom_modules/company_parser.py
-          class: CompanyBoilerplateCleaner
+          file: custom_modules/custom_parser.py
+          class: CustomBoilerplateCleaner
 """
 
 from __future__ import annotations
@@ -45,7 +45,7 @@ from haystack.dataclasses import ByteStream, Document
 
 # logger 命名在 "rag.*" 底下:file: 與 class_path: 兩種載入方式都吃得到
 # 框架的 log 檔設定(見 README「自訂方法」的「log 要看得到」)。
-logger = logging.getLogger("rag.custom.company_parser")
+logger = logging.getLogger("rag.custom.parser")
 
 
 def _read_text(source: Any, encoding: str) -> str:
@@ -56,7 +56,7 @@ def _read_text(source: Any, encoding: str) -> str:
 
 
 @component
-class CompanyPayloadParser:
+class CustomPayloadParser:
     """鏈首 converter:把公司信封格式解成 Document。
 
     Args:
@@ -86,19 +86,19 @@ class CompanyPayloadParser:
                 text = _read_text(source, self.encoding)
             except Exception as exc:
                 logger.warning(
-                    "CompanyPayloadParser:無法解析 %s(%s: %s),跳過",
+                    "CustomPayloadParser:無法解析 %s(%s: %s),跳過",
                     entry.get("doc_id") or source, type(exc).__name__, exc,
                 )
                 continue
             documents.append(Document(content=text, meta=dict(entry)))
         logger.debug(
-            "CompanyPayloadParser:%d 筆來源 → %d 份文件", len(sources), len(documents)
+            "CustomPayloadParser:%d 筆來源 → %d 份文件", len(sources), len(documents)
         )
         return {"documents": documents}
 
 
 @component
-class CompanyBoilerplateCleaner:
+class CustomBoilerplateCleaner:
     """鏈中文件處理器:去除公司樣板行(頁尾、機密聲明…)。
 
     Args:
@@ -131,5 +131,5 @@ class CompanyBoilerplateCleaner:
                 Document(content="\n".join(kept), meta=dict(doc.meta))
             )
         if removed:
-            logger.debug("CompanyBoilerplateCleaner:移除 %d 行樣板", removed)
+            logger.debug("CustomBoilerplateCleaner:移除 %d 行樣板", removed)
         return {"documents": cleaned}

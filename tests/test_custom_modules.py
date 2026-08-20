@@ -41,7 +41,7 @@ from haystack.dataclasses import Document
 
 
 @component
-class FakeCompanyRetriever:
+class FakeCustomRetriever:
     """模擬公司檢索:回傳帶 dockey meta 的 Document。"""
 
     @component.output_types(documents=list[Document])
@@ -431,7 +431,7 @@ class TestLoading:
                 inference={
                     "retrieval": {
                         "method": "custom",
-                        "params": {"file": file, "class": "FakeCompanyRetriever"},
+                        "params": {"file": file, "class": "FakeCustomRetriever"},
                     },
                     "reranking": {"method": "none"},
                 },
