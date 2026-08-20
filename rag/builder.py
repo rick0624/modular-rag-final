@@ -78,8 +78,14 @@ from rag.trace import step_order
 
 logger = logging.getLogger(__name__)
 
-# build_pipelines(stage=…) 可組的階段。順序即 CLI 的顯示順序。
+# build_pipelines(stage=…) 可組的階段。順序即 CLI 的顯示順序;
+# CLI 的 --stage choices 一律引用這裡,不另行硬編碼。
 PIPELINE_STAGES: tuple[str, ...] = ("all", "ingestion", "inference")
+
+
+def documents_written(ingestion_result: dict[str, Any]) -> int:
+    """從 ``run_ingestion()`` 的結果取出實際寫入筆數(缺欄位時為 0)。"""
+    return (ingestion_result.get("writer") or {}).get("documents_written") or 0
 
 
 # ---------------------------------------------------------------------------
@@ -677,7 +683,7 @@ class RagPipelines:
                 }
             )
         result["trace"] = trace
-        written = (result.get("writer") or {}).get("documents_written") or 0
+        written = documents_written(result)
         logger.info(
             "ingestion 完成:寫入 %d 筆%s", written,
             f";{len(empty_sources)} 個來源沒有產出切片" if empty_sources else "",

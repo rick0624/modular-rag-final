@@ -21,7 +21,7 @@ from haystack import Document, component
 _TOKEN_PATTERN = re.compile(r"[A-Za-z0-9_]+|[一-鿿㐀-䶿豈-﫿]")
 
 
-def tokenize(text: str) -> list[str]:
+def _tokenize(text: str) -> list[str]:
     """把文字切成小寫 token 清單。
 
     規則:
@@ -56,7 +56,7 @@ def tokenize(text: str) -> list[str]:
 def mock_vector(text: str, dim: int) -> list[float]:
     """為一段文字產生確定性向量(每個 token 依 hash 投影後疊加、L2 正規化)。"""
     vector = [0.0] * dim
-    tokens = tokenize(text) or [""]
+    tokens = _tokenize(text) or [""]
     for token in tokens:
         digest = hashlib.sha256(token.encode("utf-8")).digest()
         index = int.from_bytes(digest[:4], "big") % dim

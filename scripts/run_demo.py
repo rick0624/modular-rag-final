@@ -35,6 +35,7 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from rag import build_pipelines, load_config  # noqa: E402
+from rag.builder import PIPELINE_STAGES, documents_written  # noqa: E402
 from rag.config import RAGConfig, load_raw_config  # noqa: E402
 from rag.evaluation import run_evaluation  # noqa: E402
 from rag.kb_meta import (  # noqa: E402
@@ -183,7 +184,7 @@ def _run(args, log_path) -> None:
         logger.info("=== Ingestion(%s)===", args.config)
         ingestion_result = pipelines.run_ingestion()
         _emit(format_ingestion_trace(ingestion_result["trace"]), args.trace)
-        written = ingestion_result.get("writer", {}).get("documents_written") or 0
+        written = documents_written(ingestion_result)
         notes = []
         skipped_chunks = ingestion_result.get("change_filter", {}).get("skipped")
         if skipped_chunks:
@@ -270,7 +271,7 @@ def main() -> None:
     parser.add_argument(
         "--stage",
         default="all",
-        choices=["all", "ingestion", "inference"],
+        choices=list(PIPELINE_STAGES),
         help="這次跑哪一段:all=ingestion → 查詢 → 評估(預設);"
         "ingestion=只建索引(並寫 ingestion 指紋);"
         "inference=只查詢 + 評估,索引沿用既有內容"
