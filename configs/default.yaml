@@ -112,7 +112,7 @@ ingestion:
         #   summary_vector: summary #   {向量欄位名: 來源欄位}
       sentence_transformers:        # 本地模型;需 pip install -r requirements-company.txt
         model_name: sentence-transformers/all-MiniLM-L6-v2   # 預設值即此
-      api_embedding:                # 通用 HTTP API(回應形狀見 README 對映表)
+      api_embedding:                # 通用 HTTP API(回應形狀見 docs/operations.md 對映表)
         endpoint: https://api.openai.com/v1/embeddings   # 必填
         headers:                    # 預設 {}
           Authorization: Bearer YOUR_TOKEN
@@ -228,7 +228,7 @@ inference:
         # generator: {...}          # 預設 None = 沿用 generation 槽位
       custom:                       # 自訂元件(Haystack @component .py 檔)
         # 契約:queries: list[str] → queries: list[str](詳見 README
-        # 「自訂方法」與 docs/interfaces.md 的槽位契約表)
+        # 「新增自訂方法」與 docs/interfaces.md 的槽位契約表)
         file: ./my_transform.py     # .py 檔路徑(相對執行目錄);
         class: MyTransform          #   或改用 class_path: "pkg.mod:Class"
         # init_params: {}           # 預設 {}:透傳給元件建構子
@@ -263,7 +263,7 @@ inference:
         # 中文語料請用多語模型;英文的 ms-marco-MiniLM 對中文毫無鑑別力
         model: cross-encoder/mmarco-mMiniLMv2-L12-H384-v1   # 預設為英文 ms-marco
         top_k: 10                   # 預設 10
-      api_rerank:                   # 通用 HTTP rerank API(形狀見 README 對映表)
+      api_rerank:                   # 通用 HTTP rerank API(形狀見 docs/operations.md 對映表)
         endpoint: https://rerank.example.com/v1/rerank   # 必填
         headers:                    # 預設 {}
           Authorization: Bearer YOUR_TOKEN
