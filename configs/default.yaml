@@ -202,7 +202,7 @@ inference:
       jargon_mapping:               # 術語**替換**查詢文字(適合檢索-only)
         mapping:                    # 預設 None:行內對照表
           kNN: 最近鄰向量搜尋
-        # json_path: ./configs/jargon.json   # 預設 None:扁平 JSON 檔
+        # json_path: ./my_jargon.json      # 預設 None:扁平 JSON 檔
       llm_rewrite:                  # LLM 查詢改寫(1 → 1)
         # prompt: |                 # 預設:內建改寫 prompt(需含 {{ query }})
         #   ...
