@@ -110,7 +110,7 @@ ingestion:
         # source_field: content     # 預設 content;可換 chunking 生成的欄位
         # extra_vectors:            # 預設 None:額外向量(共用同一個模型)
         #   summary_vector: summary #   {向量欄位名: 來源欄位}
-      sentence_transformers:        # 本地模型;需 pip install -e ".[st]"
+      sentence_transformers:        # 本地模型;需 pip install -r requirements-company.txt
         model_name: sentence-transformers/all-MiniLM-L6-v2   # 預設值即此
       api_embedding:                # 通用 HTTP API(回應形狀見 README 對映表)
         endpoint: https://api.openai.com/v1/embeddings   # 必填
@@ -132,7 +132,7 @@ ingestion:
         #                           # 檔案沒變 → 連 parse 都跳過;
         #                           # 切片內容沒變 → 跳過 embedding 與寫入。
         #                           # 需索引具備 incremental_update 能力。
-      elasticsearch:                # 需 pip install -e ".[es]"
+      elasticsearch:                # 需 pip install -r requirements-company.txt
         hosts: http://localhost:9200    # 必填
         # 索引名帶上 embedding 模型:ES 的 dense_vector dims 建立後不可
         # 變更,換模型/維度就得換索引(或先刪掉重建)。
@@ -259,7 +259,7 @@ inference:
     method: none
     method_params:
       none: {}                      # 不重排(無參數)
-      similarity:                   # cross-encoder;需 pip install -e ".[st]"
+      similarity:                   # cross-encoder;需 pip install -r requirements-company.txt
         # 中文語料請用多語模型;英文的 ms-marco-MiniLM 對中文毫無鑑別力
         model: cross-encoder/mmarco-mMiniLMv2-L12-H384-v1   # 預設為英文 ms-marco
         top_k: 10                   # 預設 10
