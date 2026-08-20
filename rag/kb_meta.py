@@ -80,8 +80,8 @@ def _strip_operational_keys(ingestion: Any) -> Any:
 
 # ingestion 端支援 custom module 的槽位:這些槽位的 ``file:`` **檔案內容**
 # 要進指紋 —— 改了解析 / 切塊邏輯沒重建索引,索引內容就與設定不一致,
-# 與改 chunking 參數同罪。inference 端的 custom 刻意不雜湊(改了走 /reload
-# 即生效,不影響索引內容);class_path 指向已安裝套件,無單一檔案可雜湊,
+# 與改 chunking 參數同罪。inference 端的 custom 刻意不雜湊(改了重建
+# pipeline 即生效,不影響索引內容);class_path 指向已安裝套件,無單一檔案可雜湊,
 # 只有路徑字串進指紋(文件註明此限制)。
 _CUSTOM_FILE_SLOTS = ("import", "parsing", "chunking")
 

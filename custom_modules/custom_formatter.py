@@ -12,8 +12,8 @@ canonical 的 ``documents`` 等鍵照舊(evaluation / trace 不受影響)。
 1. **payload 的型別自由**(dict / str / 自訂類別都行)—— 這是終端槽位
    的特權:圖上沒有下游接它,唯一消費者是 query()。@component.output_types
    仍要誠實宣告你實際產出的具體型別。
-2. **走 HTTP(/query 回應)時 payload 必須 JSON 可序列化**;bytes 之類
-   請自行編碼(如 base64)。
+2. **payload 要往外部系統傳(例如包成 HTTP 回應)時必須 JSON 可序列化**;
+   bytes 之類請自行編碼(如 base64)。
 3. **格式歸這裡、內容歸 meta**:公司欄位(dockey、contentTitle…)是
    custom retriever 塞進 meta 帶到這裡的 —— 兩支元件用同一套欄位命名。
 

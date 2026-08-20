@@ -157,7 +157,7 @@ SLOT_CONTRACTS: dict[str, SlotContract] = {
     # ``payload: Any`` 是**終端槽位的特權**:圖上沒有下游要接它,型別開放
     # 不會斷任何接線,唯一消費者是 query()(原樣放進回傳值的 output 鍵)。
     # 中間槽位不可模仿 —— 邊界一開放,下游的契約檢查就全部失效。
-    # payload 走 HTTP(/query 回應)時須為 JSON 可序列化。
+    # payload 要往外部系統傳(例如包成 HTTP 回應)時須為 JSON 可序列化。
     "formatter": SlotContract(
         slot="formatter",
         inputs=(
@@ -409,7 +409,7 @@ def _load_from_file(where: str, file: str, cls_name: str) -> type:
         )
     resolved = str(path.resolve())
     # 模組名帶路徑雜湊:不同路徑的同名檔不互撞;每次建構重新 exec,
-    # /reload 換了檔案內容即生效。
+    # 重建 pipeline 時換了檔案內容即生效。
     digest = hashlib.sha1(resolved.encode("utf-8")).hexdigest()[:8]
     module_name = f"{CUSTOM_MODULE_PACKAGE}.{path.stem}_{digest}"
     spec = importlib.util.spec_from_file_location(module_name, resolved)

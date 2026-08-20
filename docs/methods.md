@@ -275,8 +275,8 @@ fusion 區塊不走 `method` / `method_params` 形狀:內建融合直接寫扁�
 
 | 方法 | 參數 | 預設 | 說明 |
 |---|---|---|---|
-| `basic_retrieval_metrics` | `dataset_path` | `null` | JSONL 測試集路徑;與 `cases` 擇一 |
-| | `cases` | `null` | 行內測試案例清單(`{query, relevant_doc_ids}`) |
+| `basic_retrieval_metrics` | `dataset_path` | `null` | JSONL 測試集路徑 |
+| | `cases` | `null` | 行內測試案例清單(`{query, relevant_doc_ids}`)。兩個參數至少提供一個;同時提供時以 `cases` 優先 |
 
 ### 共用 custom 參數
 
