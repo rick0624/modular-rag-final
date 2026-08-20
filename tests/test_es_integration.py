@@ -1,8 +1,7 @@
 """Elasticsearch 整合測試(選配,預設排除)。
 
-    docker compose up -d
-    pip install -e ".[dev,es]"
-    ES_URL=http://localhost:9200 python -m pytest -m es
+    pip install -e ".[dev,company]"
+    ES_URL=http://<你的 ES 主機>:9200 python -m pytest -m es
 
 叢集有開 security 時,另外帶 ES_API_KEY 或 ES_USERNAME/ES_PASSWORD
 (必要時 ES_CA_CERTS);沒帶會收到 401 missing authentication credentials。

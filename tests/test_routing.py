@@ -1,12 +1,9 @@
-"""routing 槽位:內建 keyword_match、custom、trace 排版、服務端到端。"""
+"""routing 槽位:內建 keyword_match、custom、trace 排版。"""
 
 from __future__ import annotations
 
-import copy
-
 import pytest
-import yaml
-from conftest import BASE_CONFIG, make_config
+from conftest import make_config
 
 from rag.builder import build_pipelines
 from rag.config import parse_config
@@ -214,56 +211,3 @@ class TestTraceFormatting:
         lines = format_query_trace(trace)
         assert not any("Routing" in line for line in lines)
 
-
-# --- 服務模式(fastapi 未安裝時 skip,與 test_service.py 同慣例)---
-
-fastapi = pytest.importorskip("fastapi")
-
-from fastapi.testclient import TestClient  # noqa: E402
-
-from rag.service import create_app  # noqa: E402
-
-
-def _service_config(corpus_dir, routing=None):
-    data = copy.deepcopy(BASE_CONFIG)
-    data["ingestion"]["import"]["params"]["input_dir"] = str(corpus_dir)
-    data["inference"]["generation"] = {
-        "method": "mock",
-        "params": {"replies": ["mock 回答"]},
-    }
-    if routing is not None:
-        data["inference"]["routing"] = routing
-    return data
-
-
-def _write_config(tmp_path, data):
-    path = tmp_path / "service.yaml"
-    path.write_text(yaml.safe_dump(data, allow_unicode=True), encoding="utf-8")
-    return path
-
-
-class TestService:
-    def test_query_response_includes_routing(self, tmp_path, corpus_dir):
-        path = _write_config(
-            tmp_path, _service_config(corpus_dir, routing=ROUTING_KEYWORD)
-        )
-        client = TestClient(create_app(path))
-        body = client.post("/query", json={"query": "如何請假?"}).json()
-        assert body["routing"]["category"] == "人資/差勤"
-
-    def test_query_response_routing_null_when_unset(self, tmp_path, corpus_dir):
-        path = _write_config(tmp_path, _service_config(corpus_dir))
-        client = TestClient(create_app(path))
-        body = client.post("/query", json={"query": "FAISS?"}).json()
-        assert body["routing"] is None  # 向後相容:未設 routing 槽位
-
-    def test_reload_keeps_routing_enabled(self, tmp_path, corpus_dir):
-        """/reload 重建 RagPipelines 時 routing_enabled 必須跟著傳遞。"""
-        path = _write_config(
-            tmp_path, _service_config(corpus_dir, routing=ROUTING_KEYWORD)
-        )
-        client = TestClient(create_app(path))
-        assert client.post("/reload").status_code == 200
-        body = client.post("/query", json={"query": "薪資何時發放?"}).json()
-        assert body["routing"] is not None
-        assert body["routing"]["category"] == "人資/差勤"

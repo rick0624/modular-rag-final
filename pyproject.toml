@@ -3,7 +3,7 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "modular-rag-v2"
+name = "modular-rag-final"
 version = "0.1.0"
 description = "配置驅動的 RAG 框架:Haystack 2.x 之上的薄層(槽位式 YAML + builder)"
 requires-python = ">=3.10"
@@ -19,7 +19,6 @@ dependencies = [
 # sentence-transformers 元件自 Haystack 2.32 起移出 core,一律從整合套件 import
 st = ["sentence-transformers-haystack>=0.1.1,<0.2"]
 es = ["elasticsearch-haystack>=6.3,<7"]
-service = ["fastapi>=0.110", "uvicorn>=0.27"]
 # OCR:掃描 PDF(無文字層)與多欄/表格版面(pypdf 抽字順序亂)用
 ocr = ["rapidocr-onnxruntime>=1.3", "pypdfium2>=4"]
 dev = ["pytest>=7.4"]

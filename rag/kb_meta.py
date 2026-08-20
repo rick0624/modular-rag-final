@@ -1,9 +1,9 @@
 """KB 中繼資料:ingestion 設定指紋的計算與存取。
 
-服務模式的核心不變量 —— **索引內容必須與 ingestion 設定一致**
+分階段執行的核心不變量 —— **索引內容必須與 ingestion 設定一致**
 (embedding 模型、切塊參數…都會影響索引裡的東西)。指紋把這個不變量
-變成可機械檢查的:ingest 時把指紋寫進索引旁,之後 /reload 或
---stage inference 啟動時比對,「設定變了但索引沒重建」在第一時間被擋下,
+變成可機械檢查的:ingest 時把指紋寫進索引旁,之後 --stage inference
+啟動時比對,「設定變了但索引沒重建」在第一時間被擋下,
 而不是等到查詢結果悄悄劣化。
 
 指紋的計算基礎是 **展開前** 的原始 config dict
@@ -19,7 +19,7 @@
 
 - ``elasticsearch``:索引 mapping 的 ``_meta``(跟著索引走,跨 process
   / 重啟都在;不用特殊文件存 —— 會污染檢索結果)。
-- 其他(``in_memory``):store 物件屬性(單 process 服務內有效;
+- 其他(``in_memory``):store 物件屬性(單 process 內有效;
   重啟即失,與 in_memory 資料本身的生命週期一致)。
 """
 

@@ -159,7 +159,7 @@ class TestElasticsearchAuth:
         assert _elasticsearch_auth_kwargs(params) == {"api_key": "tok"}
 
     def test_no_credentials_stays_empty(self):
-        # 本地 docker-compose 的 ES 關掉了 security,不帶憑證是合法的。
+        # 本地開發用、未開 security 的 ES,不帶憑證是合法的。
         params = _ElasticsearchParams(hosts="http://localhost:9200")
         assert _elasticsearch_auth_kwargs(params) == {}
 
@@ -593,7 +593,7 @@ class TestSkipGeneration:
 
 
 class TestStageSelection:
-    """``stage=…``:只組其中一段(run_demo.py / serve.py 的 --stage)。"""
+    """``stage=…``:只組其中一段(run_demo.py 的 --stage)。"""
 
     @staticmethod
     def _config(corpus_dir):

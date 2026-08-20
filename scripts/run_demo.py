@@ -2,18 +2,17 @@
 """端到端 demo:ingestion → 查詢 → (選填)評估。
 
     python scripts/run_demo.py                                   # 離線,不需金鑰
-    python scripts/run_demo.py --config configs/smoke.yaml \
+    python scripts/run_demo.py --config configs/default.yaml \
         --query "混合檢索怎麼運作?"
-    python scripts/run_demo.py --config configs/condense.yaml --trace
+    python scripts/run_demo.py --config configs/custom_demo.yaml --trace
         # 終端機逐步印出每個元件做了什麼(改寫、各路檢索、每段重排、融合)
 
 ``--stage`` 決定這次跑哪一段(預設 ``all``:ingestion → 查詢 → 評估):
 
-    python scripts/run_demo.py --config configs/docs.yaml --stage ingestion
-    python scripts/run_demo.py --config configs/docs.yaml --stage inference
+    python scripts/run_demo.py --stage ingestion
+    python scripts/run_demo.py --stage inference
 
-- ``ingestion``:只建索引(建完寫 ingestion 指紋,serve.py --stage
-  inference 起得來),不查詢也不評估。
+- ``ingestion``:只建索引(建完寫 ingestion 指紋),不查詢也不評估。
 - ``inference``:只查詢 + 評估,索引沿用既有內容。改 prompt / 改寫 /
   重排的迭代不必每次重新切塊與 embedding。適用於索引已建好
   (elasticsearch,會比對 ingestion 指紋)、或 retrieval 走 custom 外部
@@ -23,9 +22,6 @@
 每次執行都會另外寫一份完整紀錄到 ``logs/run-<時間戳>.log``
 (含 LLM 實際 prompt 與回覆、每步全部切片,不截斷);
 ``--log-file`` 可指定路徑,``--no-log-file`` 可關閉。
-
-長駐服務(不必每問一題重跑 ingestion)請用 scripts/serve.py
-(同樣支援 ``--stage``)。
 """
 
 from __future__ import annotations
@@ -84,10 +80,10 @@ def _warn(message: str) -> None:
 
 
 def _stamp_fingerprint(config_path: str, config: RAGConfig, store: object) -> None:
-    """ingestion 成功後把設定指紋寫到索引旁(與服務模式同一機制)。
+    """ingestion 成功後把設定指紋寫到索引旁。
 
-    這是 ``--stage ingestion`` 與後續 ``--stage inference``(或
-    ``serve.py --stage inference``)之間的握手:指紋對得上,查詢端才敢
+    這是 ``--stage ingestion`` 與後續 ``--stage inference`` 之間的握手:
+    指紋對得上,查詢端才敢
     相信索引內容就是這份 config 產出的。in_memory 的指紋隨 process 消失,
     寫了也不會有人讀到,但成本是零,不必為此分支。
     """
