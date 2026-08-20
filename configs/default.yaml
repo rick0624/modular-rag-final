@@ -1,0 +1,394 @@
+# 預設配置,同時是「方法型錄」:每個槽位**所有**可用的方法與參數都以
+# method_params 區塊並存展示 —— 換方法只需改 method 那一行,其餘區塊
+# 原樣保留、互不干擾(只有被選中的區塊會做參數驗證)。
+#
+# 目前啟用的組合完全離線:mock embedding + in_memory 索引 + mock 生成,
+# 不需網路、金鑰或模型下載,適合開發與試跑:
+#
+#   python scripts/run_demo.py
+#
+# 註解慣例:
+#   - 每個參數後面標註「預設值」;沒寫的話就是該欄位的預設。
+#   - 被註解掉的參數 = 選填,取消註解即可覆寫預設。
+#   - 未啟用的示範區塊使用「字面值占位符」(如 YOUR_TOKEN),不用
+#     ${ENV_VAR} —— 因為 ${} 會在載入時立刻展開,引用未設定的變數即使
+#     在未使用的區塊也會報錯。實際接入時改成 ${YOUR_ENV_VAR} 並於 .env 提供。
+
+ingestion:
+  import:
+    method: local_file              # 可選:local_file / custom
+    method_params:
+      local_file:                   # 萬用 importer(txt / md / pdf)
+        input_dir: ./data/raw       # 必填:要匯入的資料夾
+        # extensions: [".txt", ".md", ".pdf"]   # 預設:三者全收
+        #   收窄成同質型別(全文字或全 PDF)後,才能搭配單型別 parser
+        #   (plain_text / pdf);混合型別只有 auto 能接。
+        # recursive: true           # 預設 true:含子資料夾
+      custom:                       # 自訂來源(公司 DMS / API;示範見
+        #                           #   configs/custom_ingestion_demo.yaml)
+        # 契約:無輸入 → sources(路徑或 ByteStream)+ meta(必帶 doc_id)
+        file: ./my_importer.py      # 或 class_path: "pkg.mod:Class"
+        class: MyImporter
+        # content_type: text        # 預設 None = 跳過與 parsing 的相容性檢查;
+        #                           #   可宣告 text / pdf / mixed
+        # init_params: {}           # 預設 {}:透傳給元件建構子
+        # 注意:sources 非本地路徑時,incremental: true 的檔案層增量會
+        # 退化為每次全量重 parse;.py 檔內容會進 ingestion 指紋
+
+  parsing:
+    # 可選:auto / plain_text / pdf;鏈(輸出同型可串):[auto, clean]
+    method: auto
+    method_params:
+      auto:                         # 依檔案類型分流:txt/md → 文字、pdf → pypdf
+        encoding: utf-8             # 預設 utf-8:文字 / Markdown 檔編碼
+      plain_text:                   # 純文字(import extensions 需釘 .txt/.md)
+        encoding: utf-8             # 預設 utf-8
+      pdf: {}                       # 純 PDF(import extensions 需釘 .pdf)
+        # pypdf 文字層抽取;掃描檔(無文字層)頁面會是空的並記警告,
+        # 需要 OCR 時以 custom 掛自訂 converter
+      clean:                        # 只能接在 converter 之後(方法鏈)
+        remove_empty_lines: true    # 預設 true
+        remove_extra_whitespaces: true  # 預設 true
+        # remove_repeated_substrings: false  # 預設 false:去除頁首頁尾重複段
+      custom:                       # 自訂解析 / 前處理(兩種位置,契約不同)
+        # 鏈中(預設 kind: doc_processor):documents → documents
+        # 鏈首(kind: converter):sources + meta → documents
+        file: ./my_parser.py        # 或 class_path: "pkg.mod:Class"
+        class: MyParser
+        # kind: doc_processor       # 預設;放鏈首必須設 converter
+        # produces_pages: false     # 預設 false;產生頁界時設 true
+        #                           #   (page_based chunking 的前提)
+        # input_content_types: [text]   # 預設 None = 全收;僅 converter 可設
+        # init_params: {}           # 預設 {};.py 檔內容會進 ingestion 指紋
+
+  chunking:
+    # 可選:fixed_size / structure_based / page_based / no_chunking / custom
+    method: fixed_size
+    method_params:
+      fixed_size:                   # 固定長度(字元),\f/段落/行邊界優先
+        split_length: 300           # 預設 512:每片字元數上限
+        split_overlap: 50           # 預設 64:相鄰切片重疊字元數(需 < split_length)
+      structure_based:              # 依結構遞迴切分(頁 → 段 → 行 → 句)
+        split_length: 512           # 預設 512
+        # split_overlap: 0          # 預設 0
+        # separators: ["\f", "\n\n", "\n", "。", " "]   # 預設值即此
+      page_based:                   # 按頁切(需要會產生分頁的 parser:pdf / auto)
+        pages_per_chunk: 1          # 預設 1
+      no_chunking: {}               # 整份文件一個切片(無參數)
+      custom:                       # 自訂切塊(公司切塊規則)
+        # 契約:documents → documents(meta 逐塊複製,doc_id 必須保留)
+        file: ./my_chunker.py       # 或 class_path: "pkg.mod:Class"
+        class: MyChunker
+        # requires_pages: false     # 預設 false;需要頁界輸入時設 true
+        # provides_fields: [summary]  # 預設 None(選配):宣告元件會在切片
+        #                           #   meta 生成的欄位;宣告後 embedding 的
+        #                           #   source_field 與 indexing 的 fields
+        #                           #   引用錯欄位時建構期就報錯。不可用
+        #                           #   框架保留名(doc_id/seq/page/chunk_id/
+        #                           #   content/embedding/id)
+        # init_params: {}           # 預設 {};.py 檔內容會進 ingestion 指紋
+
+  embedding:
+    # 可選:mock / sentence_transformers / api_embedding
+    # 注意:查詢端 embedder 由此槽位派生(同向量空間紀律),
+    #      換模型或維度後必須重建索引。
+    # 三個方法都支援 source_field(預設 content):文件端 embedding 改用
+    # chunking 生成的 meta 欄位當輸入(如 summary);切片缺該欄位時
+    # ingest 直接報錯。查詢端不受影響(查詢文字進同一個模型)。
+    # 也都支援 extra_vectors(預設 None):{向量欄位名: 來源欄位},
+    # 用同一個模型對額外欄位各出一組向量,寫進切片 meta 隨 meta 落入索引
+    # (欄位名不可用框架保留名、不可與既有欄位重名)。ES 上要對額外向量
+    # 做 kNN 須在 custom_mapping 宣告同名 dense_vector 欄位,否則落入
+    # dynamic mapping 變普通 float 陣列;查詢端內建檢索只用主向量
+    # (embedding),額外向量供 custom retrieval 使用。向量欄位**不需**
+    # 列入 indexing 的 fields 白名單(未列出時自動原名保留);要改
+    # 索引端名字時才列入(如 {sum_vec: summary_vector})。
+    method: mock
+    method_params:
+      mock:                         # 離線確定性偽向量(開發測試用)
+        dim: 64                     # 預設 32
+        # source_field: content     # 預設 content;可換 chunking 生成的欄位
+        # extra_vectors:            # 預設 None:額外向量(共用同一個模型)
+        #   summary_vector: summary #   {向量欄位名: 來源欄位}
+      sentence_transformers:        # 本地模型;需 pip install -r requirements-company.txt
+        model_name: sentence-transformers/all-MiniLM-L6-v2   # 預設值即此
+      api_embedding:                # 通用 HTTP API(回應形狀見 README 對映表)
+        endpoint: https://api.openai.com/v1/embeddings   # 必填
+        headers:                    # 預設 {}
+          Authorization: Bearer YOUR_TOKEN
+        model: text-embedding-3-small   # 預設 None(不帶 model 欄位)
+        embeddings_field: data      # 預設 "embeddings";OpenAI 式為 data
+        item_field: embedding       # 預設 None;OpenAI 式為 embedding
+        # batch_size: 16            # 預設 16
+        # timeout: 30.0             # 預設 30.0
+        # texts_field: input        # 預設 "input":請求中放文字的欄位名
+        # model_field: model        # 預設 "model":請求中放模型的欄位名
+
+  indexing:
+    method: in_memory               # 可選:in_memory / elasticsearch
+    method_params:
+      in_memory:
+        # incremental: false        # 預設 false。true = 增量 ingest(兩層):
+        #                           # 檔案沒變 → 連 parse 都跳過;
+        #                           # 切片內容沒變 → 跳過 embedding 與寫入。
+        #                           # 需索引具備 incremental_update 能力。
+      elasticsearch:                # 需 pip install -r requirements-company.txt
+        hosts: http://localhost:9200    # 必填
+        # 索引名帶上 embedding 模型:ES 的 dense_vector dims 建立後不可
+        # 變更,換模型/維度就得換索引(或先刪掉重建)。
+        index: modular-rag          # 預設 "modular-rag"
+        # --- 認證:叢集開了 security 就必填,二選一 ---------------
+        # 沒帶憑證連到有 security 的叢集,第一個請求就會是
+        #   401 security_exception: missing authentication credentials
+        # (本地開發用、未開 security 的 ES 不用填)
+        # api_key: YOUR_TOKEN       # 預設 None:base64 的 "id:api_key"
+        # username: elastic         # 預設 None:basic auth,需與 password 成對
+        # password: YOUR_PASSWORD   # 預設 None
+        # --- https 叢集的 TLS -------------------------------------
+        # ca_certs: /path/to/ca.crt # 預設 None:私有 CA 簽發的憑證需指定
+        # verify_certs: true        # 預設 true;設 false 會失去傳輸層保護
+        # incremental: false        # 預設 false(同上)
+        # --- 自訂欄位白名單 + 改名(in_memory 也支援)---------------
+        # fields:                   # 預設 None = 自訂 meta 欄位全帶。設定後
+        #   summary_text: summary   #   = 白名單:{索引欄位名: meta 欄位名},
+        #   dept: department        #   未列出的自訂欄位不寫入;框架欄位
+        #                           #   (doc_id/chunk_id/seq/page)與 content/
+        #                           #   embedding 永遠保留。改映射請重建索引
+        #                           #   (增量 ingest 不會回填已跳過的切片)。
+        # --- 索引 mapping / settings / ingest pipeline --------------
+        # custom_mapping:           # 預設 None = 內建 mapping。完整覆蓋:
+        #   properties:             #   須自含 content 與 embedding 欄位,
+        #     content: {type: text, analyzer: ik_smart}   # dims = 模型維度
+        #     embedding: {type: dense_vector, dims: 384}
+        #   # 僅在索引不存在、由框架建立時生效。改 mapping 會使 ingestion
+        #   # 指紋失效(需重建索引),與改切塊參數同理。
+        # settings:                 # 預設 None。analyzer 定義等 index settings
+        #   analysis:               #   (Haystack 原生只吃 mapping,設定本參數
+        #     analyzer: {...}       #   時由框架在索引不存在時預建索引);
+        #                           #   必須搭配 custom_mapping,且建 pipeline
+        #                           #   時就會連線 ES 檢查索引是否存在。
+        # ingest_pipeline: my-pipeline  # 預設 None:寫入時套用的 ES ingest
+        #                           #   pipeline 名稱(伺服器端須已建立)
+        # request_timeout: 60       # 預設 None = client 預設 10 秒;對寫入與
+        #                           #   settings 預建索引的連線都生效。整批 bulk
+        #                           #   寫入超過 10 秒時,writer 會拋
+        #                           #   "Connection timed out"(log 中該次
+        #                           #   _bulk 是 status:N/A、duration 剛好 10s)。
+        #                           #   但若索引 refresh_interval 很長(30s/-1),
+        #                           #   病因在那裡,調高這裡只是讓它空等。
+        # retry_on_timeout: true    # 預設 None = client 預設 false。逾時自動
+        #                           #   重試;線路間歇不穩(如預建索引的 HEAD
+        #                           #   偶發 timeout)時開啟。連線層錯誤 client
+        #                           #   本來就會重試,本參數只擴及逾時。
+        # max_retries: 3            # 預設 None = client 預設 3:單次請求的
+        #                           #   最大重試次數(搭配 retry_on_timeout)。
+
+inference:
+  query_transformation:
+    # 可選:passthrough / normalize / glossary / jargon_mapping /
+    #      llm_rewrite / llm_decompose / llm_multi_hyde / preqrag / custom
+    # 鏈(list[str] → list[str],可串接):[normalize, llm_decompose]
+    #                                 或 [jargon_mapping, llm_rewrite]
+    method: normalize
+    method_params:
+      passthrough: {}               # 原樣通過(無參數)
+      normalize:                    # NFKC 正規化、壓空白、去頭尾
+        lowercase: true             # 預設 true:拉丁字母轉小寫
+      glossary:                     # 術語表:命中的定義**注入 prompt**(不改查詢)
+        glossary:                   # 預設 None:行內術語表
+          RRF: Reciprocal Rank Fusion,以名次融合多路檢索結果
+        # glossary_path: ./configs/glossary.yaml   # 預設 None:YAML 檔
+        # expand_query: false       # 預設 false;true = 定義也附加到查詢文字
+      jargon_mapping:               # 術語**替換**查詢文字(適合檢索-only)
+        mapping:                    # 預設 None:行內對照表
+          kNN: 最近鄰向量搜尋
+        # json_path: ./my_jargon.json      # 預設 None:扁平 JSON 檔
+      llm_rewrite:                  # LLM 查詢改寫(1 → 1)
+        # prompt: |                 # 預設:內建改寫 prompt(需含 {{ query }})
+        #   ...
+        # generator:                # 預設 None = 沿用 generation 槽位的 LLM
+        #   method: mock
+        #   params: {replies: ['{"rewritten_query": "...", "reason": "..."}']}
+      llm_decompose:                # LLM 查詢拆解(1 → N 子查詢)
+        max_subqueries: 3           # 預設 4
+        # prompt: |                 # 預設:內建拆解 prompt(需含 {{ query }})
+        # generator: {...}          # 預設 None = 沿用 generation 槽位
+      llm_multi_hyde:               # Multi-HyDE:LLM 生成 k 篇多角度假設文件
+        # num_documents: 3          # 預設 3:假設文件篇數
+        # keep_original: true       # 預設 true:原查詢 + 假設文件各自檢索後融合
+        # prompt: |                 # 預設:內建假設文件 prompt(需含 {{ query }})
+        # generator: {...}          # 預設 None = 沿用 generation 槽位
+      preqrag:                      # PreQRAG:先分類 single/multi 再改寫或拆解
+        # num_rewrites: 2           # 預設 2:single 分支的改寫條數
+        # max_subqueries: 4         # 預設 4:multi 分支的子查詢數上限
+        # include_original: true    # 預設 true:原查詢也保留一路
+        # classify_prompt: |        # 預設:內建分類 prompt(需含 {{ query }})
+        # rewrite_prompt: |         # 預設:內建改寫 prompt(需含 {{ query }})
+        # decompose_prompt: |       # 預設:內建拆解 prompt(需含 {{ query }})
+        # generator: {...}          # 預設 None = 沿用 generation 槽位
+      custom:                       # 自訂元件(Haystack @component .py 檔)
+        # 契約:queries: list[str] → queries: list[str](詳見 README
+        # 「自訂方法」與 docs/interfaces.md 的槽位契約表)
+        file: ./my_transform.py     # .py 檔路徑(相對執行目錄);
+        class: MyTransform          #   或改用 class_path: "pkg.mod:Class"
+        # init_params: {}           # 預設 {}:透傳給元件建構子
+
+  retrieval:
+    method: hybrid                  # 可選:bm25 / embedding / hybrid / custom
+    method_params:                  # bm25 / embedding / hybrid 參數相同
+      bm25:
+        top_k: 5                    # 預設 10
+        # boost_k_factor: 1         # 預設 1;>1 時取回 top_k × factor 筆候選,
+        #                           # 供下游 rerank 收斂(檢索品質常見手段)
+      embedding:
+        top_k: 5
+        # boost_k_factor: 1
+      hybrid:                       # BM25 + 向量,RRF 融合
+        top_k: 5
+        # boost_k_factor: 1
+      custom:                       # 自訂檢索(如公司檢索 API;不查本地索引)
+        # 契約:query: str → documents: list[Document];外部欄位映射進
+        # Document(content / score / meta)是元件內部責任
+        file: ./my_retrieval.py     # 或 class_path: "pkg.mod:Class"
+        class: MyRetriever
+        # init_params: {top_k: 5}   # 預設 {}
+
+  reranking:
+    # 可選:none / similarity / api_rerank / insertrank / custom
+    # 鏈(可串接):[similarity, insertrank] 或 [api_rerank, custom]
+    method: none
+    method_params:
+      none: {}                      # 不重排(無參數)
+      similarity:                   # cross-encoder;需 pip install -r requirements-company.txt
+        # 中文語料請用多語模型;英文的 ms-marco-MiniLM 對中文毫無鑑別力
+        model: cross-encoder/mmarco-mMiniLMv2-L12-H384-v1   # 預設為英文 ms-marco
+        top_k: 10                   # 預設 10
+      api_rerank:                   # 通用 HTTP rerank API(形狀見 README 對映表)
+        endpoint: https://rerank.example.com/v1/rerank   # 必填
+        headers:                    # 預設 {}
+          Authorization: Bearer YOUR_TOKEN
+        model: your-rerank-model    # 預設 None(不帶 model 欄位)
+        top_k: 5                    # 預設 5
+        # timeout: 30.0             # 預設 30.0
+        # --- 請求欄位名 -------------------------------------------
+        # query_field: question     # 預設 "question"
+        # documents_field: documents    # 預設 "documents"
+        # model_field: model        # 預設 "model"
+        # --- 回應欄位名 -------------------------------------------
+        # results_field: returnData # 預設 "returnData";支援 a.b 巢狀路徑,
+        #                           # 回應本身就是清單時設為 null
+        # index_field: index        # 預設 "index"
+        # score_field: score        # 預設 "score"
+        # index_base: 0             # 預設 0:回應的 index 從 0 起算;
+        #                           # 1 起算的 API 設為 1(設錯會整體位移一格)
+        # higher_is_better: true    # 預設 true;回傳「距離」的 API 設 false
+        # raise_on_failure: false   # 預設 false = API 掛掉時保留原檢索順序
+        #                           # 並記 WARNING;初次接線可設 true 讓錯誤
+        #                           # 直接炸出來,確認欄位對映無誤
+      insertrank:                   # InsertRank:候選附檢索分數的 listwise 重排
+        # top_k: 5                  # 預設 5
+        # score_label: 檢索分數      # prompt 中分數的名稱,依上游據實描述
+        #                           # (bm25 檢索最忠實於論文;hybrid 經 RRF
+        #                           # 融合後分數量級不同)
+        # prompt: |                 # 預設:內建重排 prompt
+        #                           # (需含 {{ query }} 與 {{ documents }})
+        # generator: {...}          # 預設 None = 沿用 generation 槽位
+      custom:                       # 自訂重排(如公司 rerank 邏輯)
+        # 契約:query: str + documents: list[Document] → documents
+        file: ./my_reranker.py      # 或 class_path: "pkg.mod:Class"
+        class: MyReranker
+        # init_params: {top_k: 5}   # 預設 {}
+
+  generation:
+    # 可選:mock / openai / gateway_openai_compatible / custom
+    # generate_answer: false 時本槽位可省略,但保留可作為上方 LLM 方法的
+    # 沿用連線來源(llm_rewrite / llm_decompose / insertrank 等)。
+    method: mock
+    method_params:
+      mock:                         # 離線假答案
+        # replies: ["固定回覆"]     # 預設 None;設定後依序循環
+        # prompt_template: |        # 預設 None = 內建模板
+        # system_prompt: ...        # 預設 None
+      openai:                       # 官方 OpenAI(或相容 base_url)
+        model: gpt-5-nano           # 預設 gpt-5-mini
+        # api_key: YOUR_TOKEN       # 預設 None = 用 OPENAI_API_KEY 環境變數
+        # api_base_url: http://localhost:11434/v1   # 預設 None(Ollama 等)
+        # temperature: 0.2          # 預設 None(不帶此欄位)
+        #                           # 注意:gpt-5 系列不接受非預設 temperature
+        # max_tokens: 1024          # 預設 None
+        # timeout: 60               # 預設 None
+        # prompt_template: |        # 預設 None = 內建模板
+        # system_prompt: 只根據提供的內容回答問題。   # 預設 None
+      gateway_openai_compatible:    # 公司內部閘道(可不帶 model 欄位)
+        base_url: https://llm.example.com/v1    # 必填
+        api_key: YOUR_TOKEN         # 預設 None
+        system_prompt: 只根據提供的內容回答問題。   # 預設 None
+        # model: your-model         # 預設 None = 請求不帶 model 欄位
+        # temperature: 0.2          # 預設 None
+        # max_tokens: 1024          # 預設 None
+        # timeout: 60.0             # 預設 60.0
+        # headers: {X-Tenant: team-a}   # 預設 {}:額外的 HTTP 標頭
+        # completions_path: /chat/completions   # 預設值即此
+        # prompt_template: |        # 預設 None = 內建模板
+      custom:                       # 自訂 generator(非 OpenAI 相容的內部推論
+        #                           #   服務;相容的話用 gateway 就好)
+        # 契約:messages: list[ChatMessage] → replies: list[ChatMessage]
+        #      (即 Haystack ChatGenerator 形狀;prompt 仍由框架組好才送進來)
+        file: ./my_generator.py     # 或 class_path: "pkg.mod:Class"
+        class: MyGenerator
+        # init_params: {}           # 預設 {}:透傳給元件建構子
+        # prompt_template: |        # 預設 None = 內建模板(與內建方法同款)
+        # system_prompt: ...        # 預設 None
+
+  # generate_answer: true           # 預設 true;false = 檢索-only
+  #                                 # (止於 fusion,不做生成;
+  #                                 #  answer / prompt / reply_meta 為 None)
+
+  # fusion:                         # 選填:多子查詢融合 / doc、page 聚合
+  #                                 # 省略時:單一查詢原樣通過;多子查詢才融合
+  #   group_by: doc                 # 預設 none;可選 none / doc / page
+  #   strategy: rrf                 # 預設 rrf;可選 rrf / concat_dedup / max_score
+  #   top_k: 5                      # 預設 5
+  # fusion:                         # 或:自訂融合(公司融合邏輯;與內建參數互斥)
+  #   method: custom                # 契約:results: list[list[Document]]
+  #   params:                       #      → documents: list[Document]
+  #     file: ./my_fusion.py        # 或 class_path: "pkg.mod:Class"
+  #     class: MyFusion
+  #     # init_params: {}           # 預設 {}
+  #   # 注意:掛了 custom 就一律執行(單一查詢也進元件,原樣通過與否
+  #   # 由元件決定);建議額外輸出 applied: bool 供 trace 區分
+
+  # formatter:                      # 選填:對外格式(fusion 之後的終端支線;
+  #                                 # payload 進 query() 輸出的 output key,
+  #                                 # canonical 的 documents 等鍵照舊)
+  #   method: simple_json           # 內建:通用 JSON 形狀
+  #   method_params:
+  #     simple_json:
+  #       include_content: true     # 預設 true;false = 只留引用資訊
+  #     custom:                     # 公司信封(契約:documents + query
+  #       # 契約輸出 payload: Any   #        → payload: Any,型別自由 ——
+  #       #                         #   終端槽位特權;走 HTTP 須可序列化)
+  #       file: ./my_formatter.py   # 或 class_path: "pkg.mod:Class"
+  #       class: MyFormatter
+  #       # init_params: {}         # 預設 {}
+
+  # routing:                        # 選填:查詢分類(獨立支線,不影響檢索;
+  #                                 # 結果附加於輸出的 routing key 與 trace)
+  #   method: keyword_match         # 可選:keyword_match / custom
+  #   method_params:
+  #     keyword_match:              # 關鍵字規則分類(展示 / 測試用)
+  #       routes:                   # 必填:類別 → 關鍵字清單
+  #         人資: [請假, 差勤, 薪資]
+  #         資訊: [VPN, 帳號, 密碼]
+  #       # default_category: general   # 預設 general:無命中時的類別
+  #     custom:                     # 正式場景:接公司分類模型 / 規則引擎
+  #       # 契約:query: str → route: dict[str, Any]
+  #       file: ./my_router.py      # 或 class_path: "pkg.mod:Class"
+  #       class: MyRouter
+
+evaluation:                         # 選填;省略則 demo 跳過評估
+  method: basic_retrieval_metrics   # 目前唯一方法(hit_rate / MRR)
+  params:
+    dataset_path: ./data/eval/qa.jsonl
+    # cases:                        # 或直接行內給案例(與 dataset_path 擇一)
+    #   - {query: "...", relevant_doc_ids: ["faiss.txt"]}

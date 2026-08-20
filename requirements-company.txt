@@ -1,0 +1,11 @@
+# 公司系統整合依賴:接公司環境(Elasticsearch 索引 + 本地模型備援)時
+# 在基本依賴之外加裝。與 pyproject.toml 的 [company] extra 同步。
+#
+#   pip install -r requirements.txt -r requirements-company.txt
+
+# Elasticsearch 索引(indexing: elasticsearch;向量 + BM25 + filter 伺服器端)
+elasticsearch-haystack>=6.3,<7
+
+# 本地 sentence-transformers 模型(embedding: sentence_transformers 備援、
+# reranking: similarity 的 cross-encoder)
+sentence-transformers-haystack>=0.1.1,<0.2
