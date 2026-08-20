@@ -98,7 +98,7 @@ inference:
           model: demo-llm-v1
           # endpoint: https://llm.example.com/v1/completions  # 設了就走真服務
                                     # OpenAI 相容的閘道不必寫 custom,
-                                    # 直接用 gateway_openai_compatible(見 company.yaml)
+                                    # 直接用 gateway_openai_compatible(見 default.yaml 型錄)
 
   fusion:
     method: custom                  # 契約:results: list[list[Document]]

@@ -196,50 +196,13 @@ class TestConfigFilesParse:
         )
         assert config.ingestion.indexing.params_for("in_memory") == {}
 
-    def test_smoke_yaml_parses(self):
-        config = load_config(CONFIGS_DIR / "smoke.yaml", dotenv_path=None)
-        assert config.inference.fusion.group_by == "doc"
+    def test_custom_demo_yaml_parses(self):
+        config = load_config(CONFIGS_DIR / "custom_demo.yaml", dotenv_path=None)
+        assert config.inference.retrieval.method == "custom"
 
-    def test_custom_yaml_parses_with_env(self, monkeypatch):
-        monkeypatch.setenv("ES_URL", "http://localhost:9200")
-        monkeypatch.setenv("COMPANY_EMBEDDING_API_KEY", "k1")
-        monkeypatch.setenv("COMPANY_LLM_API_KEY", "k2")
-        config = load_config(CONFIGS_DIR / "company.yaml", dotenv_path=None)
-        assert config.ingestion.indexing.method == "elasticsearch"
-        assert config.inference.reranking.methods() == ["similarity", "llm"]
-        gateway = config.inference.generation.params_for("gateway_openai_compatible")
-        assert gateway["api_key"] == "k2"
-        assert "model" not in gateway
-
-    def test_docs_yaml_parses_with_env(self, monkeypatch):
-        monkeypatch.setenv("OPENAI_API_KEY", "k1")
-        config = load_config(CONFIGS_DIR / "docs.yaml", dotenv_path=None)
-        assert config.ingestion.import_.method == "local_file"
-        assert config.ingestion.parsing.method == "auto"
-        assert config.ingestion.indexing.params_for()["index"] == "modular-rag-docs"
-        assert config.evaluation is None  # 內建評估集對自備文件沒有意義
-
-    def test_condense_yaml_parses_with_env(self, monkeypatch):
-        monkeypatch.setenv("OPENAI_API_KEY", "k1")
-        config = load_config(CONFIGS_DIR / "condense.yaml", dotenv_path=None)
-        assert config.inference.generate_answer is False
-        assert config.inference.query_transformation.methods() == [
-            "jargon_mapping",
-            "llm_rewrite",
-        ]
-        retrieval = config.inference.retrieval.params_for("hybrid")
-        assert retrieval["boost_k_factor"] == 3
-        assert config.inference.reranking.methods() == [
-            "similarity",
-            "llm_fact_check",
-        ]
-        assert config.inference.fusion.top_k == 3
-
-    def test_custom_yaml_fails_loud_without_env(self, monkeypatch):
-        monkeypatch.delenv("ES_URL", raising=False)
-        monkeypatch.delenv("COMPANY_EMBEDDING_API_KEY", raising=False)
-        monkeypatch.delenv("COMPANY_LLM_API_KEY", raising=False)
-        from rag.errors import ConfigError
-
-        with pytest.raises(ConfigError, match="未設定的環境變數"):
-            load_config(CONFIGS_DIR / "company.yaml", dotenv_path=None)
+    def test_custom_ingestion_demo_yaml_parses(self):
+        config = load_config(
+            CONFIGS_DIR / "custom_ingestion_demo.yaml", dotenv_path=None
+        )
+        assert config.ingestion.import_.method == "custom"
+        assert config.inference.formatter.method == "simple_json"
