@@ -24,7 +24,7 @@ from rag.components.api_clients import (
 )
 from rag.components.ingestion_steps import FieldSourceEmbedder, FileLister
 from rag.components.mock_embedders import MockDocumentEmbedder, MockTextEmbedder
-from rag.components.pdf_ocr import PdfToDocument
+from rag.components.pdf import PdfToDocument
 from rag.custom import CustomModuleParams, instantiate_custom
 from rag.errors import ConfigError, MissingDependencyError
 from rag.slots import (
@@ -105,32 +105,13 @@ def _build_plain_text(raw: dict[str, Any], ctx: BuildContext) -> Any:
     return TextFileToDocument(encoding=p.encoding)
 
 
-def _normalize_ocr_mode(value: Any) -> Any:
-    """把 YAML 解析出的布林還原成 OCR 模式字串。
-
-    YAML 1.1 把裸寫的 ``off`` / ``on`` / ``no`` / ``yes`` 解析成布林,
-    ``ocr: off`` 到這裡會是 ``False`` —— 這是使用者最直覺的寫法,
-    直接接受(``False`` → "off"、``True`` → "force"),不必強迫加引號。
-    """
-    if isinstance(value, bool):
-        return "force" if value else "off"
-    return value
-
-
 class _PdfParams(BaseParams):
-    ocr: Literal["off", "auto", "force"] = Field(
-        default="auto",
-        description="OCR 策略:off=純 pypdf;auto=掃描頁(無文字層)才 OCR;"
-        "force=全頁 OCR(多欄/表格版面順序亂時用)。需 pip install -e \".[ocr]\"",
-    )
-    ocr_scale: float = Field(default=2.0, gt=0, description="OCR 前的頁面渲染倍率")
-
-    _normalize_ocr = field_validator("ocr", mode="before")(_normalize_ocr_mode)
+    pass
 
 
 def _build_pdf(raw: dict[str, Any], ctx: BuildContext) -> Any:
-    p = validate_params("parsing", "pdf", _PdfParams, raw)
-    return PdfToDocument(mode=p.ocr, ocr_scale=p.ocr_scale)
+    validate_params("parsing", "pdf", _PdfParams, raw)
+    return PdfToDocument()
 
 
 class _CleanParams(BaseParams):
@@ -150,12 +131,6 @@ def _build_clean(raw: dict[str, Any], ctx: BuildContext) -> Any:
 
 class _AutoParsingParams(BaseParams):
     encoding: str = Field(default="utf-8", description="文字 / Markdown 檔編碼")
-    ocr: Literal["off", "auto", "force"] = Field(
-        default="auto", description="pdf 分支的 OCR 策略(同 pdf 方法的 ocr 參數)"
-    )
-    ocr_scale: float = Field(default=2.0, gt=0, description="OCR 前的頁面渲染倍率")
-
-    _normalize_ocr = field_validator("ocr", mode="before")(_normalize_ocr_mode)
 
 
 def _build_auto(raw: dict[str, Any], ctx: BuildContext) -> SlotGraph:
@@ -181,7 +156,7 @@ def _build_auto(raw: dict[str, Any], ctx: BuildContext) -> SlotGraph:
             ),
             "text": TextFileToDocument(encoding=p.encoding),
             "markdown": TextFileToDocument(encoding=p.encoding),
-            "pdf": PdfToDocument(mode=p.ocr, ocr_scale=p.ocr_scale),
+            "pdf": PdfToDocument(),
             # sort_by_score=False:parsing 階段全是 score=None,保持到達
             # 順序(文件內順序是 seq 穩定性的依據)且不觸發 joiner 警告。
             "join": DocumentJoiner(join_mode="concatenate", sort_by_score=False),

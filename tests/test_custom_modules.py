@@ -458,10 +458,10 @@ class TestLoading:
                 },
                 inference={
                     "reranking": {
-                        "method": ["custom", "llm"],
+                        "method": ["custom", "insertrank"],
                         "method_params": {
                             "custom": {"file": file, "class": "ReverseReranker"},
-                            "llm": {"top_k": 3},
+                            "insertrank": {"top_k": 3},
                         },
                     }
                 },
@@ -470,7 +470,7 @@ class TestLoading:
         pipelines = build_pipelines(config)
         inner = pipelines.inference.get_component("multi_query").inner
         assert type(inner.get_component("ranker")).__name__ == "ReverseReranker"
-        assert type(inner.get_component("ranker_2")).__name__ == "LLMRanker"
+        assert type(inner.get_component("ranker_2")).__name__ == "InsertRankLLMRanker"
         pipelines.run_ingestion()
         result = pipelines.query("向量檢索")
         assert result["documents"]

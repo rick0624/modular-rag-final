@@ -40,13 +40,14 @@ def _traceable_config(corpus_dir):
             },
             "retrieval": {"method": "hybrid", "params": {"top_k": 2}},
             "reranking": {
-                "method": ["llm_fact_check"],
+                "method": ["insertrank"],
                 "method_params": {
-                    "llm_fact_check": {
+                    "insertrank": {
+                        "top_k": 1,
                         "generator": {
                             "method": "mock",
-                            "params": {"replies": ['{"relevant_indices": [1]}']},
-                        }
+                            "params": {"replies": ['{"ranking": [1]}']},
+                        },
                     }
                 },
             },
@@ -96,7 +97,7 @@ def test_query_trace_records_transforms_and_inner_steps(corpus_dir):
     for step in steps:
         assert isinstance(step["documents"], list)
 
-    # 事實查核只留 1 筆:過濾效果在 trace 中可直接對照
+    # 重排收斂到 top 1:收斂效果在 trace 中可直接對照
     assert len(steps[-1]["documents"]) == 1
     assert len(steps[-2]["documents"]) >= len(steps[-1]["documents"])
 

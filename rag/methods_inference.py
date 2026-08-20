@@ -13,11 +13,9 @@ import importlib.util
 from typing import Any
 
 from haystack.components.joiners import DocumentJoiner
-from haystack.components.rankers import LLMRanker
 from pydantic import Field
 
 from rag.components.api_clients import FlexibleAPIRanker
-from rag.components.fact_check import DEFAULT_FACT_CHECK_PROMPT, LLMFactChecker
 from rag.components.gateway_generator import GatewayChatGenerator, MockChatGenerator
 from rag.components.llm_rerankers import DEFAULT_INSERTRANK_PROMPT, InsertRankLLMRanker
 from rag.components.query_transforms import (
@@ -477,50 +475,6 @@ def _build_similarity_ranker(raw: dict[str, Any], ctx: BuildContext) -> Any:
     return SentenceTransformersSimilarityRanker(model=p.model, top_k=p.top_k)
 
 
-class _LLMRerankParams(BaseParams):
-    top_k: int = Field(default=5, gt=0)
-    generator: dict[str, Any] | None = Field(
-        default=None,
-        description="重排用的 chat generator({method, params});"
-        "未設定時沿用 generation 槽位",
-    )
-
-
-def _build_llm_ranker(raw: dict[str, Any], ctx: BuildContext) -> Any:
-    p = validate_params("reranking", "llm", _LLMRerankParams, raw)
-    # 注意:LLMRanker 不傳 chat_generator 會在 init 時建 OpenAIChatGenerator
-    # (要求 OPENAI_API_KEY);builder 一律顯式傳入。
-    chat_generator = _chat_generator_from_block(
-        "reranking 方法 'llm'", p.generator, ctx
-    )
-    return LLMRanker(chat_generator=chat_generator, top_k=p.top_k)
-
-
-class _LLMFactCheckParams(BaseParams):
-    prompt: str = Field(
-        default=DEFAULT_FACT_CHECK_PROMPT,
-        description="查核 prompt(含 {{ query }} 與 {{ documents }})",
-    )
-    max_docs: int | None = Field(
-        default=None, gt=0, description="送交 LLM 查核的切片數上限;其餘原樣通過"
-    )
-    generator: dict[str, Any] | None = Field(
-        default=None,
-        description="查核用的 chat generator({method, params});"
-        "未設定時沿用 generation 槽位",
-    )
-
-
-def _build_llm_fact_check(raw: dict[str, Any], ctx: BuildContext) -> Any:
-    p = validate_params("reranking", "llm_fact_check", _LLMFactCheckParams, raw)
-    chat_generator = _chat_generator_from_block(
-        "reranking 方法 'llm_fact_check'", p.generator, ctx
-    )
-    return LLMFactChecker(
-        chat_generator=chat_generator, prompt=p.prompt, max_docs=p.max_docs
-    )
-
-
 class _InsertRankParams(BaseParams):
     top_k: int = Field(default=5, gt=0)
     score_label: str = Field(
@@ -608,9 +562,7 @@ RERANKING_FACTORIES: dict[str, SlotFactory] = {
     "none": SlotFactory(build=_build_no_rerank),
     "similarity": SlotFactory(build=_build_similarity_ranker),
     "api_rerank": SlotFactory(build=_build_api_ranker),
-    "llm": SlotFactory(build=_build_llm_ranker),
     "insertrank": SlotFactory(build=_build_insertrank),
-    "llm_fact_check": SlotFactory(build=_build_llm_fact_check),
     "custom": SlotFactory(build=_build_custom_reranker),
 }
 

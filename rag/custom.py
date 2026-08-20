@@ -107,7 +107,7 @@ SLOT_CONTRACTS: dict[str, SlotContract] = {
     # generation 的契約是 Haystack 的 ChatGenerator 形狀 —— prompt 的組裝
     # 仍由框架的 ChatPromptBuilder 負責(custom 元件收到的是組好的
     # messages),因此 custom generator 也能被 llm_rewrite / llm_decompose /
-    # llm rerank / llm_fact_check 的 params.generator 沿用。
+    # insertrank 等方法的 params.generator 沿用。
     "generation": SlotContract(
         slot="generation",
         inputs=(SocketSpec("messages", list[ChatMessage]),),

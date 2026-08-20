@@ -28,7 +28,7 @@ BASE_CONFIG: dict[str, Any] = {
     "inference": {
         "query_transformation": {"method": "passthrough"},
         "retrieval": {"method": "bm25"},
-        "reranking": {"method": "llm"},
+        "reranking": {"method": "insertrank"},
         "generation": {"method": "mock"},
     },
 }

@@ -8,8 +8,10 @@ from __future__ import annotations
 import logging
 from typing import Any
 
-from haystack import Document, component
+from haystack import Document, component, default_from_dict, default_to_dict
+from haystack.core.serialization import component_to_dict
 from haystack.dataclasses import ChatMessage
+from haystack.utils import deserialize_chatgenerator_inplace
 
 from rag.text import extract_json_object
 
@@ -53,6 +55,26 @@ class InsertRankLLMRanker:
         self.prompt = prompt
         self.top_k = top_k
         self.score_label = score_label
+
+    def to_dict(self) -> dict[str, Any]:
+        # chat_generator 是元件實例,預設序列化不認得 → 顯式遞迴序列化
+        # (Pipeline.to_dict() / trace 檢視都會經過這裡)。
+        return default_to_dict(
+            self,
+            chat_generator=component_to_dict(
+                obj=self.chat_generator, name="chat_generator"
+            ),
+            prompt=self.prompt,
+            top_k=self.top_k,
+            score_label=self.score_label,
+        )
+
+    @classmethod
+    def from_dict(cls, data: dict[str, Any]) -> "InsertRankLLMRanker":
+        init_params = data.get("init_parameters", {})
+        if init_params.get("chat_generator"):
+            deserialize_chatgenerator_inplace(init_params, key="chat_generator")
+        return default_from_dict(cls, data)
 
     def _render(self, documents: list[Document]) -> str:
         lines = []

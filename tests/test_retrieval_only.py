@@ -1,8 +1,8 @@
 """檢索-only 端到端測試:condense 流程全離線跑完。
 
 一次驗證:jargon_mapping 替換、llm_rewrite 改寫(腳本)、hybrid 檢索
-候選放大(boost_k_factor)、LLM 重排(腳本)、llm_fact_check 過濾
-(腳本)、fusion 去重排序取 top 3、generate_answer: false 跳過生成。
+候選放大(boost_k_factor)、InsertRank LLM 重排(腳本)、
+fusion 去重排序取 top 3、generate_answer: false 跳過生成。
 """
 
 from __future__ import annotations
@@ -48,23 +48,15 @@ def _condense_config(corpus_dir, **top_level):
                     "params": {"top_k": 2, "boost_k_factor": 3},
                 },
                 "reranking": {
-                    "method": ["llm", "llm_fact_check"],
-                    "method_params": {
-                        "llm": {
-                            "top_k": 4,
-                            "generator": {
-                                "method": "mock",
-                                "params": {
-                                    # LLMRanker 協定:1 起編號,未列出者丟棄
-                                    "replies": ['{"documents": [{"index": 1}, {"index": 2}]}']
-                                },
+                    "method": "insertrank",
+                    "params": {
+                        "top_k": 4,
+                        "generator": {
+                            "method": "mock",
+                            "params": {
+                                # InsertRank 協定:1 起編號,未列出者依原順序補後
+                                "replies": ['{"ranking": [1, 2]}']
                             },
-                        },
-                        "llm_fact_check": {
-                            "generator": {
-                                "method": "mock",
-                                "params": {"replies": ['{"relevant_indices": [1, 2]}']},
-                            }
                         },
                     },
                 },

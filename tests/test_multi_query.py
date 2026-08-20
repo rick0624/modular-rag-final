@@ -55,13 +55,13 @@ def test_builder_wires_rerank_chain_into_inner_pipeline():
             inference={
                 "retrieval": {"method": "hybrid"},
                 "reranking": {
-                    "method": ["llm", "llm"],
+                    "method": ["insertrank", "insertrank"],
                     "method_params": {
-                        "llm": {
+                        "insertrank": {
                             "top_k": 3,
                             "generator": {
                                 "method": "mock",
-                                "params": {"replies": ['{"documents": [{"index": 1}]}']},
+                                "params": {"replies": ['{"ranking": [1]}']},
                             },
                         }
                     },

@@ -20,7 +20,7 @@ MINIMAL = {
     "inference": {
         "query_transformation": {"method": "passthrough"},
         "retrieval": {"method": "bm25"},
-        "reranking": {"method": "llm"},
+        "reranking": {"method": "insertrank"},
         "generation": {"method": "mock"},
     },
 }
@@ -131,7 +131,7 @@ class TestMethodParams:
     def test_chain_with_flat_params_rejected(self):
         data = make_config()
         data["inference"]["reranking"] = {
-            "method": ["similarity", "llm"],
+            "method": ["similarity", "insertrank"],
             "params": {"top_k": 5},
         }
         with pytest.raises(ConfigError, match="method_params"):

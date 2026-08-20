@@ -81,7 +81,7 @@ def test_noisy_dependencies_are_muted_on_console_only(tmp_path, capsys):
     path = setup_logging(tmp_path / "run.log")
 
     logging.getLogger("huggingface_hub.utils._http").warning("沒設 HF_TOKEN")
-    logging.getLogger("rag.components.fact_check").warning("查核失敗")
+    logging.getLogger("rag.components.llm_rerankers").warning("查核失敗")
 
     console = capsys.readouterr().err
     assert "沒設 HF_TOKEN" not in console

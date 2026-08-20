@@ -469,33 +469,6 @@ class TestBoostKFactor:
             build_inference_pipeline(config)
 
 
-class TestFactCheckRegistration:
-    def test_unknown_rerank_method_lists_fact_check(self):
-        config = parse_config(
-            make_config(inference={"reranking": {"method": "factcheck"}})
-        )
-        with pytest.raises(UnknownMethodError, match="'llm_fact_check'"):
-            build_inference_pipeline(config)
-
-    def test_chained_after_llm_rerank(self):
-        config = parse_config(
-            make_config(
-                inference={
-                    "reranking": {
-                        "method": ["llm", "llm_fact_check"],
-                        "method_params": {},
-                    }
-                }
-            )
-        )
-        pipeline, _ = build_inference_pipeline(config)
-        inner = pipeline.get_component("multi_query").inner
-        from rag.components.fact_check import LLMFactChecker
-
-        assert inner.get_component("ranker") is not None
-        assert isinstance(inner.get_component("ranker_2"), LLMFactChecker)
-
-
 class TestResearchMethodRegistration:
     """preqrag / llm_multi_hyde / insertrank 走完整的 config → pipeline
     路徑(元件行為見 test_query_transforms / test_llm_rerankers)。"""
@@ -575,7 +548,7 @@ class TestSkipGeneration:
         assert meta["generate_answer"] is False
 
     def test_flag_false_without_generation_requires_explicit_generator(self):
-        # reranking 為 llm 且未指定 generator:沒有 generation 槽位可沿用
+        # reranking 為 insertrank 且未指定 generator:沒有 generation 槽位可沿用
         data = make_config(inference={"generate_answer": False})
         del data["inference"]["generation"]
         config = parse_config(data)
@@ -583,7 +556,7 @@ class TestSkipGeneration:
             build_inference_pipeline(config)
 
     def test_flag_false_with_generation_block_still_inherits(self):
-        # generation 區塊保留(mock)時,llm rerank 沿用成功
+        # generation 區塊保留(mock)時,insertrank 沿用成功
         config = parse_config(
             make_config(inference={"generate_answer": False})
         )
