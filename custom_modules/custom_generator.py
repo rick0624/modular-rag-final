@@ -11,8 +11,8 @@ LLM 常常不是 OpenAI 相容格式(欄位名不同、要帶專案代號、回�
 把回答包回 ChatMessage」。
 
 同一個類別也可以掛在其他 LLM 方法的 ``params.generator`` 底下
-(``llm_rewrite`` / ``llm_decompose`` / reranking 的 ``llm`` 與
-``llm_fact_check``),整條 pipeline 因此只走公司的推論服務。
+(``llm_rewrite`` / ``llm_decompose`` / reranking 的 ``insertrank``),
+整條 pipeline 因此只走公司的推論服務。
 
 掛載方式(configs/custom_demo.yaml):
 

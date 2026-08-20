@@ -5,7 +5,8 @@
 參數見下方[各方法參數](#各方法參數),完整範例見 `configs/default.yaml`
 (方法型錄),輸入輸出契約見 [interfaces.md](interfaces.md)。
 
-標記:🔌 需額外安裝(`pip install -e ".[extra]"`);⛓ 該模組支援方法鏈
+標記:🔌 需額外安裝公司整合依賴(`pip install -r requirements-company.txt`
+或 `pip install -e ".[company]"`);⛓ 該模組支援方法鏈
 (`method: [a, b]` 依序執行)。
 
 ## Ingestion
@@ -15,7 +16,7 @@
 | 1 Import | `local_file` | 掃描本地資料夾(txt / md / pdf,`extensions` 可收窄) |
 | | `custom` | 自訂來源(公司 DMS / API,文件可不落地) |
 | 2 Parsing ⛓ | `plain_text` | 純文字檔(txt / md) |
-| | `pdf` | PDF(pypdf 文字層 + 選擇性 OCR 🔌 `[ocr]`) |
+| | `pdf` | PDF(pypdf 文字層;掃描檔無文字層會出警告,需要 OCR 時走 custom converter) |
 | | `auto` | 依檔案類型自動分流(混合語料用這個) |
 | | `clean` | 清理空行/多餘空白(只能放鏈中,如 `[auto, clean]`) |
 | | `custom` | 自訂解析:鏈首 converter(`kind: converter`)或鏈中處理器 |
@@ -25,10 +26,10 @@
 | | `no_chunking` | 整份文件一個切片 |
 | | `custom` | 自訂切塊規則;可生成自訂 meta 欄位並以 `provides_fields` 宣告 |
 | 4 Embedding(皆支援 `source_field`:改用 chunking 生成的欄位做向量;與 `extra_vectors`:同一模型對額外欄位各出一組向量,寫進 meta 隨索引落地) | `mock` | 離線確定性偽向量(開發測試用) |
-| | `sentence_transformers` | 本地模型 🔌 `[st]` |
+| | `sentence_transformers` | 本地模型 🔌 |
 | | `api_embedding` | 通用 HTTP embedding API(欄位名可對映,OpenAI 式也用它) |
 | 5 Indexing(皆支援 `fields:` 自訂欄位白名單/改名) | `in_memory` | 記憶體索引(隨 process 消失;開發測試用) |
-| | `elasticsearch` | ES 索引(向量 + BM25 + filter;支援增量 ingest、自訂 mapping、settings 預建索引與 ingest pipeline)🔌 `[es]` |
+| | `elasticsearch` | ES 索引(向量 + BM25 + filter;支援增量 ingest、自訂 mapping、settings 預建索引與 ingest pipeline)🔌 |
 
 ## Inference
 
@@ -48,11 +49,9 @@
 | | `hybrid` | BM25 + 向量,RRF 融合(`boost_k_factor` 可放大候選) |
 | | `custom` | 自訂檢索(如公司檢索 API,不吃本地索引) |
 | 8 Reranking ⛓ | `none` | 不重排 |
-| | `similarity` | cross-encoder 相似度重排 🔌 `[st]` |
+| | `similarity` | cross-encoder 相似度重排 🔌 |
 | | `api_rerank` | 通用 HTTP rerank API(欄位名可對映) |
-| | `llm` | LLM listwise 重排 |
-| | `insertrank` | InsertRank:listwise 重排時把候選的檢索分數寫進 prompt(WSDM 2026;只重排不改分) |
-| | `llm_fact_check` | LLM 相關性查核(只過濾,不重排不改分) |
+| | `insertrank` | InsertRank:listwise LLM 重排,把候選的檢索分數寫進 prompt(WSDM 2026;只重排不改分) |
 | | `custom` | 自訂重排 |
 | 融合/聚合(內建步驟) | (內建) | `strategy: rrf / concat_dedup / max_score` × `group_by: none / doc / page`;內建融合直接寫扁平參數、**不寫 method** |
 | | `custom` | 自訂融合(與扁平參數互斥;掛上即一律執行) |
@@ -98,10 +97,8 @@
 | 方法 | 參數 | 預設 | 說明 |
 |---|---|---|---|
 | `plain_text` | `encoding` | `utf-8` | 文字檔編碼 |
-| `pdf` | `ocr` | `"auto"` | OCR 策略:`off` = 純 pypdf;`auto` = 掃描頁(無文字層)才 OCR;`force` = 全頁 OCR(多欄 / 表格版面順序亂時用)。需 `pip install -e ".[ocr]"` |
-| | `ocr_scale` | `2.0` | OCR 前的頁面渲染倍率 |
+| `pdf` | (無參數) | | pypdf 文字層抽取 |
 | `auto` | `encoding` | `utf-8` | 文字 / Markdown 分支的檔案編碼 |
-| | `ocr`、`ocr_scale` | 同 `pdf` | pdf 分支的 OCR 參數(同 `pdf` 方法) |
 | `clean` | `remove_empty_lines` | `true` | 移除空行 |
 | | `remove_extra_whitespaces` | `true` | 壓縮多餘空白 |
 | | `remove_repeated_substrings` | `false` | 去除頁首頁尾重複段 |
@@ -219,15 +216,10 @@
 | | `index_base` | `0` | 回應 index 的起算基準(`0` 或 `1`;設錯會整體位移一格) |
 | | `higher_is_better` | `true` | 分數越大越相關;回傳「距離」的 API 設 `false` |
 | | `raise_on_failure` | `false` | API 失敗時中斷查詢;預設保留原檢索順序並記警告 |
-| `llm` | `top_k` | `5` | 重排後保留筆數 |
-| | `generator` | `null`(沿用 generation 槽位) | 重排用的 LLM(`{method, params}`) |
 | `insertrank` | `top_k` | `5` | 重排後保留筆數 |
 | | `score_label` | `檢索分數` | prompt 中分數的名稱,依上游檢索器據實描述 |
 | | `prompt` | 內建重排 prompt | 需含 `{{ query }}` 與 `{{ documents }}` |
-| | `generator` | `null` | 同上 |
-| `llm_fact_check` | `prompt` | 內建查核 prompt | 需含 `{{ query }}` 與 `{{ documents }}` |
-| | `max_docs` | `null`(全部送查) | 送交 LLM 查核的切片數上限;其餘原樣通過 |
-| | `generator` | `null` | 同上 |
+| | `generator` | `null`(沿用 generation 槽位) | 重排用的 LLM(`{method, params}`) |
 | `custom` | 共用 custom 參數 | | |
 
 ### 融合 / 聚合(fusion)
@@ -307,7 +299,7 @@ parsing 的 `kind` 等)見各槽位表格。
   完整掛載示範見 `configs/custom_demo.yaml`(inference 端)與
   `configs/custom_ingestion_demo.yaml`(ingestion 端)。
 - **LLM 類方法**(`llm_rewrite` / `llm_decompose` / `llm_multi_hyde` /
-  `preqrag` / `llm` / `insertrank` / `llm_fact_check`)都有 `generator`
+  `preqrag` / `insertrank`)都有 `generator`
   參數可各自指定 LLM
   (`{method, params}`,吃 Generation 模組的任一方法);
   不設定時沿用 generation 槽位 —— 整條管線因此可以只接一個 LLM 來源。

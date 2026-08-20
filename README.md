@@ -1,15 +1,13 @@
-# modular-rag-v2
+# modular-rag-final
 
 配置驅動的模組化 RAG 框架 —— **Haystack 2.x 之上的薄層**。
 
-[modular-rag(v1)](https://github.com/rick0624/modular-rag) 是全手刻的
-十模組框架;v2 改以 [Haystack](https://haystack.deepset.ai/) 為引擎,
-保留 v1 的操作體驗與契約:**槽位式單一 YAML 配置**(換方法只改一行)、
-建構期相容性檢查、繁中錯誤訊息(指出收到什麼 / 期望什麼 / 該改哪個
-欄位 / 可用替代)、離線可跑的測試文化。自維護程式碼從整套框架縮減為
+以 [Haystack](https://haystack.deepset.ai/) 為引擎,自維護程式碼只有
 一個薄 builder:方法型錄(`rag/methods_ingestion.py` /
 `rag/methods_inference.py`,方法名稱 → Haystack 元件)加上接線邏輯
-(`rag/builder.py`)。
+(`rag/builder.py`)。操作契約:**槽位式單一 YAML 配置**(換方法只改
+一行)、建構期相容性檢查、繁中錯誤訊息(指出收到什麼 / 期望什麼 /
+該改哪個欄位 / 可用替代)、離線可跑的測試文化。
 
 ## 架構總覽
 
@@ -25,17 +23,17 @@ Evaluation: JSONL 測試集 → 逐題查詢 → hit rate / MRR
 | 槽位 | 方法(粗體為預設) | 對應實作 |
 |---|---|---|
 | import | **local_file**(萬用:txt/md/pdf,`extensions` 可收窄) / custom | 自訂 FileLister(相對路徑 doc_id)/ 自訂元件(公司 DMS / API) |
-| parsing | **auto**(依檔案類型分流) / plain_text / pdf / clean(鏈用) / custom(鏈首或鏈中,`kind` 宣告);pdf 支援 `ocr: off/auto/force` | FileTypeRouter + 自訂 PdfToDocument(pypdf + rapidocr)+ DocumentCleaner |
+| parsing | **auto**(依檔案類型分流) / plain_text / pdf / clean(鏈用) / custom(鏈首或鏈中,`kind` 宣告) | FileTypeRouter + 自訂 PdfToDocument(pypdf)+ DocumentCleaner |
 | chunking | **fixed_size** / structure_based / page_based / no_chunking / custom | (Recursive)DocumentSplitter,一律字元單位 / 自訂元件(公司切塊規則) |
 | embedding | **mock** / sentence_transformers / api_embedding;皆支援 `source_field`(選任一 chunking 生成欄位做向量)與 `extra_vectors`(同一模型對額外欄位各出一組向量) | ST 整合套件 / 自訂 Flexible API embedder |
 | indexing | **in_memory** / elasticsearch(皆支援 `incremental: true` 增量 ingest 與 `fields:` 欄位白名單/改名;ES 另支援 custom_mapping + settings 預建索引) | InMemory / Elasticsearch DocumentStore |
 | query_transformation | **normalize** / passthrough / glossary / jargon_mapping / llm_rewrite / llm_decompose / llm_multi_hyde / preqrag / custom | 自訂元件(`list[str] → list[str]`) |
 | retrieval | **bm25** / embedding / hybrid(皆支援 `boost_k_factor` 候選放大) / custom | 依 indexing 選 retriever;hybrid 走 RRF |
-| reranking | **none** / similarity / api_rerank / llm / insertrank / llm_fact_check / custom | ST cross-encoder / 自訂 Flexible API ranker / core LLMRanker / 自訂 InsertRankLLMRanker / 自訂 LLMFactChecker |
+| reranking | **none** / similarity / api_rerank / insertrank / custom | ST cross-encoder / 自訂 Flexible API ranker / 自訂 InsertRankLLMRanker |
 | generation | **mock** / openai / gateway_openai_compatible / custom(`generate_answer: false` 可跳過) | OpenAIChatGenerator / 自訂閘道 generator / 自訂元件(`messages → replies`) |
 | routing(選填槽位,省略=不做) | keyword_match / custom | 自訂 KeywordRouteClassifier;結果進 `query()` 的 `routing` key,不影響檢索 |
 | formatter(選填槽位,省略=不做) | simple_json / custom | 終端支線:最終結果組成對外格式,進 `query()` 的 `output` key;canonical 鍵照舊 |
-| fusion(內建步驟,可換 custom) | rrf / concat_dedup / max_score × group_by none/doc/page,或 `method: custom` | 自訂 SubqueryFusion(v1 演算法)/ 自訂元件(掛上即一律執行) |
+| fusion(內建步驟,可換 custom) | rrf / concat_dedup / max_score × group_by none/doc/page,或 `method: custom` | 自訂 SubqueryFusion / 自訂元件(掛上即一律執行) |
 | evaluation | basic_retrieval_metrics | hit rate / MRR(doc_id 依名次去重) |
 
 `custom` 方法讓你把**自己的 Haystack 元件 .py 檔**掛進槽位,零框架改動
@@ -44,64 +42,84 @@ Evaluation: JSONL 測試集 → 逐題查詢 → hit rate / MRR
 
 方法組合的相容性(content_type、分頁需求、索引能力)在**建構期**檢查,
 不合法組合直接報錯並列出可相容的方法,詳見
-[docs/interfaces.md](docs/interfaces.md)。
+[docs/interfaces.md](docs/interfaces.md);方法與參數的完整清單見
+[docs/methods.md](docs/methods.md)。
 
 ## 安裝
 
-需要 Python 3.10+。
+需要 Python 3.10+。依賴分兩份:
 
 ```bash
-pip install -e ".[dev]"        # 核心(離線可跑,無 torch、無 ES)
-pip install -e ".[st]"         # 選配:sentence-transformers 模型(embedding / cross-encoder)
-pip install -e ".[es]"         # 選配:Elasticsearch
-pip install -e ".[service]"    # 選配:HTTP 服務模式(FastAPI + uvicorn)
-pip install -e ".[ocr]"        # 選配:PDF OCR(掃描檔、多欄表格版面)
+pip install -r requirements.txt            # 基本:離線可跑(無 torch、無 ES)
+pip install -r requirements-company.txt    # 公司系統整合:Elasticsearch + sentence-transformers
+```
+
+或以套件形式安裝(等價):
+
+```bash
+pip install -e ".[dev]"          # 基本 + pytest
+pip install -e ".[dev,company]"  # 加公司整合依賴
 ```
 
 ## 執行
 
 ```bash
-python scripts/run_demo.py                                  # 全離線,不需金鑰
-python scripts/run_demo.py --config configs/smoke.yaml      # 跑過所有機制(拆解/重排/融合)
-python scripts/run_demo.py --config configs/company.yaml    # 公司環境(見下)
+python scripts/run_demo.py                                          # 全離線,不需金鑰
+python scripts/run_demo.py --query "你的問題"
+python scripts/run_demo.py --config configs/custom_demo.yaml --trace
 ```
 
 demo 會自動建立範例語料(`./data/raw`)與評估集(`./data/eval/qa.jsonl`),
 依序執行 ingestion → 查詢 → 評估,印出融合後檢索結果、實際送出的
 prompt(可稽核)、回答與 hit rate / MRR。
 
+內建三份 config:
+
+| config | 組合 | 適用情境 |
+|---|---|---|
+| `default.yaml` | mock embedding + in_memory + mock LLM;**同時是方法型錄**(所有方法與參數並存展示,含公司整合區塊:api_embedding / api_rerank / gateway / ES 認證) | 離線開發、試跑、當作自己 config 的起點 |
+| `custom_demo.yaml` | inference 端六槽位掛 custom module + custom fusion | custom 機制示範(inference 端) |
+| `custom_ingestion_demo.yaml` | ingestion 三槽位掛 custom(公司 API 匯入 → 自訂解析 → 自訂切塊)+ formatter | custom 機制示範(ingestion 端) |
+
+接自己的環境時,複製 `default.yaml` 出來改:每個槽位把 `method` 換成
+要用的方法(對應的 `method_params` 區塊都已示範),機密以 `${ENV_VAR}`
+注入(`cp .env.example .env` 填金鑰)。
+
 ### 分階段執行(`--stage`)
 
-兩支腳本都吃 `--stage`,決定這個 process 做哪一段。**只決定建不建那條
-pipeline,不改變任何一條的組法**,所以半條與整條的行為完全一致:
+`--stage` 決定這個 process 做哪一段。**只決定建不建那條 pipeline,
+不改變任何一條的組法**,所以半條與整條的行為完全一致:
 
-| `--stage` | `run_demo.py` | `serve.py` |
-|---|---|---|
-| `all`(預設) | ingestion → 查詢 → 評估 | 啟動時 ingest 一次,再開服務 |
-| `ingestion` | 只建索引(寫 ingestion 指紋),不查詢也不評估 | 只建索引就結束,**不開 port** |
-| `inference` | 只查詢 + 評估,索引沿用既有內容 | 跳過啟動 ingestion,直接開服務 |
+| `--stage` | 行為 |
+|---|---|
+| `all`(預設) | ingestion → 查詢 → 評估 |
+| `ingestion` | 只建索引(寫 ingestion 指紋),不查詢也不評估 |
+| `inference` | 只查詢 + 評估,索引沿用既有內容 |
 
 ```bash
-# 建索引(排程 / CI)→ 查詢端另外起,兩者靠 ingestion 指紋握手
-python scripts/serve.py   --config configs/docs.yaml --stage ingestion
-python scripts/serve.py   --config configs/docs.yaml --stage inference
-
-# 只測 inference:改 prompt / 改寫 / 重排的迭代不必每次重切塊 + 重算 embedding
-python scripts/run_demo.py --config configs/docs.yaml --stage inference --query "你的問題"
+# 建索引(排程 / CI)→ 查詢另外跑,兩者靠 ingestion 指紋握手
+python scripts/run_demo.py --config my.yaml --stage ingestion
+python scripts/run_demo.py --config my.yaml --stage inference --query "你的問題"
 ```
 
-`--stage inference` 的前提是**索引裡已經有內容**:
+改 prompt / 改寫 / 重排的迭代用 `--stage inference`,不必每次重切塊 +
+重算 embedding。前提是**索引裡已經有內容**:
 
 | 情形 | 行為 |
 |---|---|
-| `indexing: elasticsearch`(索引先前建好) | 比對 ingestion 指紋,不符會出聲(設定變了但索引沒重建 → 結果會無聲劣化);`serve.py` 直接拒絕啟動 |
+| `indexing: elasticsearch`(索引先前建好) | 比對 ingestion 指紋,不符會出聲(設定變了但索引沒重建 → 結果會無聲劣化) |
 | `retrieval: custom`(外部檢索,不吃本地索引) | 直接跑 |
 | `indexing: in_memory` 且 retrieval 走本地索引 | 索引是空的 → 印警告,查詢不會有結果 |
 
 程式接入時對應 `build_pipelines(config, stage=...)`:沒建的那條在
 `RagPipelines` 上是 `None`,誤呼叫 `run_ingestion()` / `query()` 會直接
-報錯並指明要怎麼重建。服務端對應 `create_app(path, stage=...)` 與
-`rag.service.ingest_only(path)`。
+報錯並指明要怎麼重建。
+
+**ingestion 指紋**:ingest 時把 ingestion 區塊的 sha256(以展開前的
+原始 config 計算,機密不進雜湊)寫在索引旁(ES:index mapping `_meta`;
+in_memory:process 內),`--stage inference` 啟動時比對,不符即拒絕。
+ingestion 區塊(import / parsing / chunking / embedding / indexing)決定
+索引裡的內容,改了就必須重建索引。
 
 ### 逐步紀錄(trace)
 
@@ -109,9 +127,9 @@ python scripts/run_demo.py --config configs/docs.yaml --stage inference --query 
 要看**中間每一步做了什麼**加 `--trace`:
 
 ```bash
-python scripts/run_demo.py --config configs/condense.yaml --trace
-python scripts/run_demo.py --config configs/condense.yaml --trace --trace-docs 0   # 每步印出全部切片
-python scripts/run_demo.py --config configs/condense.yaml --log-level DEBUG        # 另含 LLM 實際 prompt 與回覆
+python scripts/run_demo.py --trace
+python scripts/run_demo.py --trace --trace-docs 0   # 每步印出全部切片
+python scripts/run_demo.py --log-level DEBUG        # 另含 LLM 實際 prompt 與回覆
 ```
 
 會逐步列出:ingestion 各步驟的產出筆數(import → parse → chunk → stamp →
@@ -142,9 +160,9 @@ for step in result["trace"]["subqueries"][0]["steps"]:
 | HTTP 請求、Haystack 元件執行順序 | ✗ | ✓ |
 
 ```bash
-python scripts/run_demo.py --config configs/condense.yaml       # 自動寫 logs/run-*.log
-python scripts/run_demo.py --log-file logs/experiment-a.log     # 指定路徑
-python scripts/run_demo.py --no-log-file                        # 不寫檔
+python scripts/run_demo.py                          # 自動寫 logs/run-*.log
+python scripts/run_demo.py --log-file logs/a.log    # 指定路徑
+python scripts/run_demo.py --no-log-file            # 不寫檔
 ```
 
 log 檔是 UTF-8。Windows PowerShell 5.1 的 `Get-Content` 預設用系統 ANSI 編碼
@@ -173,66 +191,44 @@ Get-Content logs\run-20260802-154249.log -Encoding UTF8
 排版函式在 `rag.trace`(`format_ingestion_trace` / `format_query_trace`),
 終端機與 log 檔共用同一份實作。
 
-內建三份 config:
-
-| config | 組合 | 適用情境 |
-|---|---|---|
-| `default.yaml` | mock embedding + in_memory + mock LLM;**同時是方法型錄** | 離線開發、試跑 |
-| `smoke.yaml` | 方法鏈 + LLM 拆解(mock 腳本)+ hybrid + LLM 重排(mock 腳本)+ fusion | 煙霧測試 |
-| `company.yaml` | ES + 公司 embedding API + 公司 LLM 閘道 + 雙段 rerank + fusion | 公司環境 |
-| `condense.yaml` | query condense(術語替換 + LLM 改寫)+ hybrid 候選放大 + rerank + LLM 事實查核 + top 3,**不做生成** | 檢索-only 服務 |
-| `docs.yaml` | 同 `condense.yaml`,但來源是混合文件(txt/md/pdf,auto 分流) | 測試自己的文件 |
-
 ### 用自己的文件(txt / md / pdf 混放)
 
-把文件放進 **`./data/docs/`**(txt / md / pdf 混放皆可,子資料夾也會掃到),然後:
-
-```bash
-python scripts/run_demo.py --config configs/docs.yaml --query "你的問題"
-```
+把文件放進一個資料夾,`import.params.input_dir` 指過去
+(txt / md / pdf 混放皆可,子資料夾也會掃到):
 
 `local_file` 是萬用 importer(預設收 `.txt` / `.md` / `.pdf`),搭配
 `parsing: auto` 依檔案類型自動分流(txt/md → 文字 converter、pdf →
-PyPDFToDocument),全部進**同一個索引**(一個 config = 一個 KB)。
+pypdf),全部進**同一個索引**(一個 config = 一個 KB)。
 
 content_type 由 `extensions` 推導:同質(全文字或全 PDF)→ 該型別,
 可搭配單型別 parser(`plain_text` / `pdf`);異質 → `mixed`,只有 `auto`
 能接。所以**要用 `plain_text` 就得釘住 `extensions: [".txt", ".md"]`**,
 否則建構期會報不相容(訊息會提示改用 `auto`)。
 
-> 遷移註記:`pdf_file` import 方法已移除 —— 改用 `local_file`
-> (需要純 PDF 語意時加 `extensions: [".pdf"]`)。
-
 幾個常會想調的地方:
 
-- **OCR**(`parsing.params.ocr`,需 `pip install -e ".[ocr]"`):
-  - `auto`(預設):掃描檔(無文字層)的頁面自動 OCR;沒裝 OCR 時會
-    明確警告該檔「沒有產出任何切片」,不再靜默消失。
-  - `force`:全頁 OCR。**多欄 / 表格版面的 PDF(如榜單)必用** ——
-    pypdf 按內部串流順序抽字,視覺上相鄰的標題與內容會被打散重排,
-    OCR 按視覺位置輸出才正確。成本約每頁數秒,搭配 `incremental: true`
-    只有第一次(或檔案變更時)要付。
+- **掃描 PDF**:pypdf 只抽文字層,掃描檔(無文字層)的頁面會是空的
+  (有警告,不會靜默消失)。需要 OCR 時以 `parsing: custom` 掛自訂
+  converter 接入(契約見 docs/interfaces.md)。
 - **切法**:`chunking.method` 可改 `page_based`(按頁切;混合語料下
   txt/md 整檔視為一頁)或 `structure_based`;版面雜訊多時
   `parsing.method` 改成鏈 `[auto, clean]`。
-- **索引**:`docs.yaml` 用獨立索引 `modular-rag-docs`,不會跟範例語料混在一起。
-  換 embedding 模型後必須換索引名或先刪索引(ES 的 `dense_vector` dims 建立後不可變)。
-- **要生成答案**:把 `generate_answer` 改成 `true`。
-- **評估**:`docs.yaml` 刻意不設 `evaluation` —— 內建的 `qa.jsonl` 是給範例語料的。
-  自備 JSONL 時 `doc_id` 就是檔案相對 `input_dir` 的路徑(例如 `manual.pdf`)。
+- **索引**:換 embedding 模型後必須換索引名或先刪索引
+  (ES 的 `dense_vector` dims 建立後不可變)。
+- **增量 ingest**:`indexing.params.incremental: true`,兩層 ——
+  **檔案層**:內容未變的檔案連 parse 都跳過(檔案 bytes 雜湊記在索引旁
+  的 manifest;parsing/chunking 設定變更會使 manifest 作廢、全量重
+  parse);**切片層**:變更檔案中「content 與被 embed 的欄位
+  (`source_field`)」皆未變的切片跳過 embedding。
+- **重 ingest 不會刪除已移除檔案的舊切片**(upsert 語意,增量模式亦同):
+  來源檔案刪減後想要乾淨的索引,換索引名或先刪索引再重建。
+- **評估**:自備 JSONL 時 `doc_id` 就是檔案相對 `input_dir` 的路徑
+  (例如 `manual.pdf`)。
 
-公司環境:
+### 連到有認證的 Elasticsearch
 
-```bash
-cp .env.example .env           # 填入 ES_URL 與兩把金鑰(只需第一次)
-docker compose up -d           # 或指向既有 ES 叢集
-python scripts/run_demo.py --config configs/company.yaml
-```
-
-#### 連到有認證的 Elasticsearch
-
-`docker-compose.yml` 的本地 ES 關掉了 security,所以不用帶憑證;正式 /
-公司叢集預設是開著的,沒帶憑證時第一個請求就會失敗:
+本地開發、未開 security 的 ES 不用帶憑證;正式 / 公司叢集預設是開著的,
+沒帶憑證時第一個請求就會失敗:
 
 ```
 AuthenticationException(401, 'security_exception',
@@ -245,13 +241,14 @@ AuthenticationException(401, 'security_exception',
 ```yaml
 indexing:
   method: elasticsearch
-  params:
-    hosts: ${ES_URL}
-    index: modular-rag-company
-    username: ${ES_USERNAME}     # basic auth,需與 password 成對
-    password: ${ES_PASSWORD}
-    # api_key: ${ES_API_KEY}     # 或改用 API key(base64 的 "id:api_key")
-    # ca_certs: ${ES_CA_CERTS}   # https 且憑證由私有 CA 簽發時
+  method_params:
+    elasticsearch:
+      hosts: ${ES_URL}
+      index: modular-rag-company
+      username: ${ES_USERNAME}     # basic auth,需與 password 成對
+      password: ${ES_PASSWORD}
+      # api_key: ${ES_API_KEY}     # 或改用 API key(base64 的 "id:api_key")
+      # ca_certs: ${ES_CA_CERTS}   # https 且憑證由私有 CA 簽發時
 ```
 
 補完再跑一次即可。相關細節:
@@ -269,7 +266,7 @@ indexing:
 
 ```bash
 python -m pytest               # 全離線(預設排除 ES 測試)
-ES_URL=http://localhost:9200 python -m pytest -m es   # ES 整合測試(選配)
+ES_URL=http://<你的 ES>:9200 python -m pytest -m es   # ES 整合測試(選配)
 ```
 
 ### Python API
@@ -286,62 +283,6 @@ result["documents"]   # 融合後切片(meta 含 doc_id/page/group_key/sources)
 result["prompt"]      # 實際送出的 prompt(可稽核)
 result["routing"]     # 查詢分類結果(未設 routing 槽位時為 None)
 ```
-
-## 服務模式(HTTP API)
-
-`run_demo.py` 是批次模式:跑完一題就結束。長駐服務改用 `serve.py` ——
-**一份 config 啟動一個 KB 服務**,ingestion 與 inference 同駐一個 process
-(共用 store,embedding 等跨階段設定結構上保證一致),啟動時 ingest 一次,
-之後查詢不再重建索引:
-
-```bash
-pip install -e ".[service]"
-python scripts/serve.py --config configs/docs.yaml                    # 啟動並 ingest
-python scripts/serve.py --config configs/docs.yaml --stage inference  # 索引已建好(會驗指紋)
-python scripts/serve.py --config configs/docs.yaml --stage ingestion  # 只建索引就結束(不開 port)
-```
-
-讀寫分離部署:`--stage ingestion` 由排程 / CI 建索引,查詢服務用
-`--stage inference` 起來吃同一個 ES 索引,兩者靠 ingestion 指紋握手
-(見上方「分階段執行」)。
-
-端點(另有 `/docs` 自動 API 文件):
-
-```bash
-curl http://127.0.0.1:8000/health
-curl -X POST http://127.0.0.1:8000/query \
-     -H "Content-Type: application/json" \
-     -d '{"query": "混合檢索怎麼運作?"}'
-curl -X POST http://127.0.0.1:8000/reload   # 改了 YAML 的 inference 段後套用
-curl -X POST http://127.0.0.1:8000/ingest   # 資料或 ingestion 設定變更後全量重建
-```
-
-**啟動後只允許改 inference / evaluation 區塊。** ingestion 區塊
-(import / parsing / chunking / embedding / indexing)決定索引裡的
-內容,改了就必須重建索引 —— 服務以 **ingestion 指紋**強制這件事:
-ingest 時把 ingestion 區塊的 sha256(以展開前的原始 config 計算,
-機密不進雜湊)寫在索引旁(ES:index mapping `_meta`;in_memory:
-process 內),`/reload` 與 `--stage inference` 啟動時比對,不符即拒絕
-(409 / 拒啟)並導向 `POST /ingest`。
-
-注意事項:
-
-- **增量 ingest**(`indexing.params.incremental: true`,`docs.yaml` 已開),
-  兩層:**檔案層** —— 內容未變的檔案連 parse(含 OCR)都跳過(檔案
-  bytes 雜湊記在索引旁的 manifest;parsing/chunking 設定變更會使 manifest
-  作廢、全量重 parse);**切片層** —— 變更檔案中「content 與被 embed 的
-  欄位(`source_field`)」皆未變的切片跳過 embedding。注意:只改
-  `indexing.params.fields` 映射時,增量不會回填已跳過的切片,請重建索引
-  或關 incremental 全量跑一次。回應的 `skipped_files` / `skipped_unchanged` 顯示兩層跳過量;
-  `documents_written: 0` 表示這次沒有任何變更。
-- **空來源回報**:沒有產出任何切片的檔案(掃描檔沒 OCR、解析失敗…)
-  會出現在回應的 `empty_sources` 與 log 警告中,不會靜默消失。
-- **單 worker**:store 與服務狀態都在 process 內,查詢 / 重建以 lock
-  序列化;不要用 `uvicorn --workers N`。
-- **in_memory 索引**:`/reload` 在 process 內沒問題,但重啟即失、
-  `--stage inference` 起來是空索引;正式服務請用 `elasticsearch`。
-- **重 ingest 不會刪除已移除檔案的舊切片**(upsert 語意,增量模式亦同):
-  來源檔案刪減後想要乾淨的索引,換索引名或先刪索引再 `/ingest`。
 
 ## 配置說明
 
@@ -373,7 +314,7 @@ process 內),`/reload` 與 `--stage inference` 啟動時比對,不符即拒絕
   query_transformation:
     method: [normalize, llm_decompose] # 先正規化,再 LLM 拆解子查詢
   reranking:
-    method: [similarity, llm]          # cross-encoder 收斂 → LLM 精排
+    method: [similarity, insertrank]   # cross-encoder 收斂 → LLM 精排
 ```
 
 ### 多子查詢與融合(`fusion`)
@@ -473,8 +414,8 @@ class BySentenceSplitter:
   契約就是 Haystack 的 ChatGenerator 形狀,`prompt_template` /
   `system_prompt` 照常寫在 YAML,元件收到的是框架組好的 messages。
   同一支元件也能掛在 `llm_rewrite` / `llm_decompose` / `llm_multi_hyde` /
-  `preqrag` / `llm` / `insertrank` / `llm_fact_check` 的
-  `params.generator`,整條 pipeline 只走公司的推論服務。OpenAI 相容的閘道**不需要**寫 custom,用
+  `preqrag` / `insertrank` 的 `params.generator`,整條 pipeline 只走
+  公司的推論服務。OpenAI 相容的閘道**不需要**寫 custom,用
   `gateway_openai_compatible` 即可。
 - **fusion 掛了 custom 就一律執行**:單一查詢(N=1)也進元件,「單查詢
   原樣通過」的內建行為不會幫你做,由元件自己決定。建議額外輸出
@@ -485,24 +426,22 @@ class BySentenceSplitter:
   與 prompt → generation 並聯)、socket 名稱(`payload`)與 `query()` 的
   鍵(`output`)固定,payload 的型別由元件自己決定(dict / str / 自訂
   類別)—— 這是終端槽位的特權,圖上沒有下游接它;中間槽位不可模仿。
-  走 HTTP(`/query` 回應的 `output` 欄位)時 payload 必須 JSON 可序列化。
 - **ingestion 端的相容性宣告寫在 config 參數裡**:import 的
   `content_type`、parsing 的 `kind` / `produces_pages` /
   `input_content_types`、chunking 的 `requires_pages` —— 建構期的相容性
   檢查(content_type 流向、分頁需求)照常執行,省略即跳過 / 用預設。
 - **ingestion 端 custom 的 `file:` 檔案內容會進 ingestion 指紋**:改了
-  解析 / 切塊邏輯 = 索引內容過期,服務模式 `/reload` 會 409,請走
-  `POST /ingest` 重建;`incremental: true` 的檔案層 manifest 也會作廢
-  (全量重 parse)。`class_path:` 指向已安裝套件,只有路徑字串進指紋,
-  內容變更偵測不到 —— 要指紋保護就用 `file:`。另注意 `--stage inference`
-  的查詢端主機也要有同一份 `.py`,否則指紋對不上。
+  解析 / 切塊邏輯 = 索引內容過期,`incremental: true` 的檔案層 manifest
+  也會作廢(全量重 parse)。`class_path:` 指向已安裝套件,只有路徑字串
+  進指紋,內容變更偵測不到 —— 要指紋保護就用 `file:`。另注意
+  `--stage inference` 的查詢端主機也要有同一份 `.py`,否則指紋對不上。
 - **custom import 回傳非本地路徑(ByteStream / API 參照)時**,
   `incremental: true` 的檔案層增量無從比對雜湊,退化為每次全量重 parse
   (會出聲警告;切片層增量仍會跳過內容未變的 embedding)。
 - embedding / indexing 槽位暫不支援 custom(factory 回傳形狀不是單一
   元件:embedding 是 document / text 一對,indexing 是 document store);
   有需求時走路 B。
-- 完整可跑的骨架見 [examples/custom_modules/](examples/custom_modules/)
+- 完整可跑的骨架見 [custom_modules/](custom_modules/)
   (改寫 / 檢索 / 重排 / 分類 / 生成 / 融合 / 匯入 / 解析 / 切塊 / 格式化,
   `TODO(替換點)` 標明換入真實邏輯的位置)與兩份示範 config:
   `python scripts/run_demo.py --config configs/custom_demo.yaml --trace`
@@ -568,8 +507,8 @@ TRANSFORM_FACTORIES["by_sentence"] = SlotFactory(build=_build_by_sentence)
 - **`index` 指的是候選在送出清單中的位置**,不是文件 id。`index_base`
   設錯會讓結果整體位移一格 —— 全部越界時會直接報錯並提示改設哪個值,
   但只差一格而沒越界時偵測不到,接線時請先確認 API 文件。
-- **回應未列出的候選視同淘汰**,與 `llm` 重排的協定一致。API 端若有
-  自己的 top_n,最終筆數會是它與 `top_k` 取小。
+- **回應未列出的候選視同淘汰**。API 端若有自己的 top_n,最終筆數會是
+  它與 `top_k` 取小。
 - **不自動分批**:rerank 的分數只在同一次呼叫內可比,分批送會讓排序
   失真。候選數由 `retrieval` 的 `top_k` × `boost_k_factor` 決定,
   API 有長度上限時請從那裡收斂。
@@ -577,7 +516,7 @@ TRANSFORM_FACTORIES["by_sentence"] = SlotFactory(build=_build_by_sentence)
   (前 `top_k` 筆),查詢不中斷。初次接線建議先設 `raise_on_failure: true`
   把欄位對映確認好再關掉。
 - **多子查詢會多次呼叫**:`llm_decompose` 拆成 N 個子查詢時,每個子查詢
-  各跑一次重排 → N 次 API 呼叫(`similarity` / `llm` 也是如此)。
+  各跑一次重排 → N 次 API 呼叫(`similarity` / `insertrank` 也是如此)。
 
 ## 接入實際 LLM
 
@@ -587,10 +526,10 @@ TRANSFORM_FACTORIES["by_sentence"] = SlotFactory(build=_build_by_sentence)
   `model` 未設定時請求**完全不帶**該欄位(官方 SDK 做不到);
   OpenAI 推理模型(gpt-5 / o 系列)自動忽略 `temperature`、
   改以 `max_completion_tokens` 送出,不需調整 YAML。
-- `llm_decompose`、`llm_rewrite`、`llm_multi_hyde`、`preqrag`、`llm` 重排、
-  `insertrank` 與 `llm_fact_check` 未指定 `generator` 時,**沿用 generation
-  槽位的 LLM 設定**(各自新實例);也可各自指定(smoke.yaml 用 mock
-  腳本示範)。
+- `llm_decompose`、`llm_rewrite`、`llm_multi_hyde`、`preqrag` 與
+  `insertrank` 未指定 `generator` 時,**沿用 generation 槽位的 LLM 設定**
+  (各自新實例);也可各自指定(`params.generator` 吃 generation 的
+  任一方法,含 mock 腳本)。
 
 ## 檢索-only 模式(`generate_answer: false`)
 
@@ -601,26 +540,11 @@ TRANSFORM_FACTORIES["by_sentence"] = SlotFactory(build=_build_by_sentence)
   與 generator;`query()` 回傳的 key 不變,但 `answer` / `prompt` /
   `reply_meta` 為 `None`,檢索結果照常在 `documents`。
 - `generation` 區塊此時**可省略**;保留時只作為 `llm_rewrite` /
-  `llm` / `llm_fact_check` 等 LLM 方法的沿用連線來源(見上)。
+  `insertrank` 等 LLM 方法的沿用連線來源(見上)。
   兩者都沒有時,這些方法必須各自指定 `params.generator`。
-- 完整範例見 `configs/condense.yaml`:術語替換(`jargon_mapping`,
-  JSON 對照表)→ LLM 改寫(`llm_rewrite`)→ hybrid 檢索候選放大
-  (`boost_k_factor: 3`,各 retriever 取 top_k × 3)→ cross-encoder
-  收斂 → LLM 事實查核(`llm_fact_check`,只移除不相關切片,不重排
-  不改分)→ fusion 去重排序回傳 top 3。
-
-## v1 → v2 遷移註記
-
-| 項目 | v1 | v2 |
-|---|---|---|
-| 資料物件 | 自訂 pydantic(Chunk 等) | Haystack `Document`,身分欄位在 meta(見 [docs/interfaces.md](docs/interfaces.md)) |
-| chunking 參數 | `chunk_size` / `chunk_overlap` | `split_length` / `split_overlap`(仍為字元單位) |
-| prompt 模板 | `{context}` / `{query}` | Jinja2:`{{ query }}` + `{% for doc in documents %}`(預設模板已含 `[chunk_id]` 前綴) |
-| 非分頁來源的 `page` | `None` | `1`(按文件分組語意等價) |
-| reranking `lexical_overlap` | 內建 | 移除;請改用 `similarity`(效果遠佳)或 `llm` |
-| `custom_api` importer/parser | 內建 | 未移植(接外部服務請寫自訂元件,見「新增自訂方法」) |
-| FAISS 索引 | in_memory_faiss / id_map_faiss | `in_memory`(開發)/ `elasticsearch`(正式);索引持久化交給 ES |
-| service 模式(KB 管理 / 藍綠重建) | FastAPI 服務 | 已移植:`scripts/serve.py`(單 KB;ingestion 指紋守護設定一致性,見「服務模式」節) |
+- 典型組合:術語替換(`jargon_mapping`)→ LLM 改寫(`llm_rewrite`)→
+  hybrid 檢索候選放大(`boost_k_factor`)→ cross-encoder 收斂
+  (`similarity`)→ fusion 去重排序回傳 top k。
 
 ## 設計要點
 
@@ -632,7 +556,8 @@ TRANSFORM_FACTORIES["by_sentence"] = SlotFactory(build=_build_by_sentence)
 - **`Document.id = chunk_id`**(`"{doc_id}::chunk_{seq}"`):同輸入必同
   id,重複 ingest 即 upsert,ES `_id` 穩定。
 - **離線優先**:mock embedding / mock LLM 是一級公民;所有測試不碰
-  網路,LLM 行為以腳本化 mock 驗證(含 LLMRanker 的 JSON 排序協定)。
+  網路,LLM 行為以腳本化 mock 驗證。
 - **相依版本**:`haystack-ai>=2.31,<3`;sentence-transformers 元件從
   整合套件 import(2.32 起移出 core);`elasticsearch-haystack>=6.3`
-  (ES 8.x)。
+  (ES 8.x)。依賴清單:[requirements.txt](requirements.txt)(基本)+
+  [requirements-company.txt](requirements-company.txt)(公司系統整合)。

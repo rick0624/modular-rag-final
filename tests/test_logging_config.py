@@ -129,7 +129,7 @@ class TestCustomModuleLogging:
         assert "擴充後的查詢" in path.read_text(encoding="utf-8")
 
     def test_real_example_module_logs(self, tmp_path, monkeypatch):
-        """實地驗一次 examples/ 的骨架:載入後呼叫 run(),紀錄要出現在檔案裡。"""
+        """實地驗一次 custom_modules/ 的骨架:載入後呼叫 run(),紀錄要出現在檔案裡。"""
         monkeypatch.chdir(REPO_ROOT)
         path = setup_logging(tmp_path / "run.log")
         component = instantiate_custom(
