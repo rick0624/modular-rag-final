@@ -102,13 +102,14 @@ rag/                        框架本體
 custom_modules/             自訂元件的範例骨架(接公司系統時複製來改)
 scripts/
   run_demo.py               主要執行入口:建索引 → 查詢 → 評估
-  experiment.py             管線組合實驗(批次比較不同方法組合)
+  experiment.py             管線組合實驗(批次比較不同方法組合,見 docs/experiments.md)
   sample_data.py            demo 用的範例語料
 tests/                      測試(全部離線,不碰網路)
 docs/
   methods.md                所有方法與參數的完整型錄
   interfaces.md             custom 元件的輸入輸出契約
   operations.md             進階操作手冊(本 README 沒展開的細節都在這)
+  experiments.md            管線組合實驗指南(experiment.py 的用法與注意事項)
 requirements.txt            基本依賴(離線可跑)
 requirements-company.txt    公司系統整合依賴(Elasticsearch + sentence-transformers)
 .env.example                金鑰範本(複製成 .env 填入)
@@ -147,7 +148,7 @@ python scripts/run_demo.py --stage inference            # 只查詢(索引沿用
 ```bash
 python -m pytest                                        # 全部測試(離線)
 ES_URL=http://<你的 ES>:9200 python -m pytest -m es      # ES 整合測試(選配)
-python scripts/experiment.py                            # 批次比較方法組合
+python scripts/experiment.py                            # 批次比較方法組合(詳見 docs/experiments.md)
 ```
 
 trace / log / 分階段的完整說明,見 [docs/operations.md](docs/operations.md)。

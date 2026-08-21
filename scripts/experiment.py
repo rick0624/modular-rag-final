@@ -1,6 +1,9 @@
 #!/usr/bin/env python
 """管線組合實驗:程式化生成 config、逐組合執行查詢、收集原始結果。
 
+詳細說明(比較模式、選項寫法、接評估指標、注意事項)見
+docs/experiments.md。
+
 用法:改下面「實驗定義」區塊,然後:
 
     python scripts/experiment.py
@@ -33,7 +36,7 @@ from typing import Any
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from rag import build_pipelines  # noqa: E402
-from rag.config import RAGConfig, load_raw_config  # noqa: E402
+from rag.config import load_dotenv, load_raw_config, parse_config  # noqa: E402
 
 # 掃描時保持輸出乾淨;想看每個組合的內部 log 就把這行拿掉。
 logging.disable(logging.WARNING)
@@ -180,6 +183,7 @@ def make_variants(base: dict) -> list[tuple[str, dict, dict]]:
 
 def run_experiments() -> list[dict]:
     """逐組合建管線、跑查詢;ingestion 相同的組合共用同一個索引。"""
+    load_dotenv()  # 與 run_demo 一致:金鑰由 .env 注入(已存在的環境變數優先)
     base = load_raw_config(BASE_CONFIG)
     base.pop("evaluation", None)  # 評估自己接,不用 config 裡的 evaluation 區塊
     records: list[dict] = []
@@ -191,7 +195,8 @@ def run_experiments() -> list[dict]:
         records.append(record)
         try:
             key = json.dumps(cfg_dict["ingestion"], sort_keys=True)
-            config = RAGConfig.model_validate(cfg_dict)
+            # parse_config 會展開 ${ENV_VAR}(與 run_demo 相同行為)
+            config = parse_config(cfg_dict, source=label)
             if key in stores:  # 索引沿用,只重建 inference 管線
                 pipelines = build_pipelines(config, stage="inference",
                                             store=stores[key])
