@@ -5,8 +5,9 @@
 它會自動產生多個 config 組合、逐一跑查詢、收集結果。
 你不用手動改 config 檔再一個一個跑。
 
-定位:這支腳本只負責「跑出原始結果」。
-要算分數(hit_rate / MRR)請接上評估,見[第 5 節](#5-接上評估指標)。
+評估(算分數)的方式由 experiment.py 內部串接,
+目前接的是 Online 系統的評估方法。
+本文件只說明通用的部分:怎麼設定「要比較什麼」。
 
 目錄:
 
@@ -14,23 +15,20 @@
 2. [兩種比較模式(MODE)](#2-兩種比較模式mode)
 3. [SLOT_OPTIONS:設定要比較什麼](#3-slot_options設定要比較什麼)
 4. [選項的四種寫法](#4-選項的四種寫法)
-5. [接上評估指標](#5-接上評估指標)
-6. [保存結果與重現組合](#6-保存結果與重現組合)
-7. [注意事項](#7-注意事項)
+5. [注意事項](#5-注意事項)
 
 ---
 
 ## 1. 快速開始
 
-實驗的設定都寫在 `scripts/experiment.py` 最上面的「實驗定義」區塊,
-共四個變數:
+實驗的設定寫在 `scripts/experiment.py` 最上面的「實驗定義」區塊。
+主要的三個變數:
 
 | 變數 | 意思 |
 |---|---|
 | `BASE_CONFIG` | 基底設定檔(預設 `configs/default.yaml`);每個組合都從它出發修改 |
 | `MODE` | 比較模式:`one_at_a_time` 或 `product`(見第 2 節) |
 | `SLOT_OPTIONS` | 要比較的模組與選項(見第 3 節) |
-| `QUERIES` | 每個組合都會問的測試問題 |
 
 改好之後,在 repo 根目錄執行:
 
@@ -38,18 +36,9 @@
 python scripts/experiment.py
 ```
 
-執行後每個組合印一行,像這樣:
-
-```
-[OK]   baseline  各題檢回 [3, 3]
-[OK]   retrieval=bm25  各題檢回 [3, 3]
-[OK]   retrieval=embedding  各題檢回 [3, 2]
-[FAIL] retrieval=hybrid: ConfigError: ...
-```
-
-- `[OK]` 後面是組合名稱(label)與每題檢索回來的切片數。
-- `[FAIL]` 表示這個組合建不起來或跑失敗;**一個組合失敗不會中斷整批**,
-  錯誤訊息記在該筆結果裡。
+執行後,每個組合會印出一行結果(組合名稱與評估結果)。
+**一個組合失敗不會中斷整批**:失敗的組合會標示錯誤訊息,
+其餘組合照常跑完。
 
 ## 2. 兩種比較模式(MODE)
 
@@ -129,7 +118,7 @@ SLOT_OPTIONS = {
 ### 寫法四:bundle —— 多個模組綁在一起換
 
 有些設定必須一起換才有意義
-(例如換了 embedding 模型,ES 的 index 也得跟著換,見第 7 節)。
+(例如換了 embedding 模型,ES 的 index 也得跟著換,見第 5 節)。
 bundle 的寫法:**dict 的 key 是模組位置**(含「.」),
 外層的 key 只是這個比較維度的名字(自己取):
 
@@ -164,75 +153,7 @@ SLOT_OPTIONS = {
 
 `product` 模式下,整個 bundle 算一個維度參與交叉。
 
-## 5. 接上評估指標
-
-`run_experiments()` 回傳的每筆結果只有原始輸出,沒有分數。
-接上框架內建的評估器就能算 hit_rate / MRR。
-
-在 `scripts/` 底下開一個新檔(例如 `scripts/my_eval.py`):
-
-```python
-"""跑實驗並對每個組合算 hit_rate / MRR。"""
-
-from experiment import run_experiments
-
-from rag.evaluation import EvalCase, RetrievalMetricsEvaluator
-
-# 標準答案:每題列出「應該被檢索到的文件 doc_id」。
-# 注意:順序與內容必須對齊 experiment.py 的 QUERIES。
-CASES = [
-    EvalCase(query="FAISS 支援哪些索引結構?", relevant_doc_ids=["faiss.txt"]),
-    EvalCase(query="Elasticsearch 的用途是什麼?", relevant_doc_ids=["elasticsearch.txt"]),
-]
-
-evaluator = RetrievalMetricsEvaluator(cases=CASES)
-for rec in run_experiments():
-    if rec["error"]:
-        print(f"[FAIL] {rec['label']}: {rec['error']}")
-        continue
-    outputs = [output for _query, output in rec["results"]]
-    metrics = evaluator.evaluate(CASES, outputs)["metrics"]
-    print(f"{rec['label']:<45} hit_rate={metrics['hit_rate']:.3f}  mrr={metrics['mrr']:.3f}")
-```
-
-在 repo 根目錄執行 `python scripts/my_eval.py`,會看到每個組合一行分數:
-
-```
-baseline                                      hit_rate=1.000  mrr=1.000
-retrieval=bm25                                hit_rate=1.000  mrr=0.750
-...
-```
-
-`doc_id` 就是檔案相對於 `input_dir` 的路徑(例如 `manual.pdf`、
-`sub/notes.md`)。
-
-## 6. 保存結果與重現組合
-
-每筆結果(record)都帶完整出處,可以存檔、之後重現:
-
-| 欄位 | 內容 |
-|---|---|
-| `label` | 組合名稱(人讀的) |
-| `overrides` | 這個組合改了哪些模組(相對於基底) |
-| `config` | 完整的 config dict(`${ENV_VAR}` 保持原樣,金鑰不會被存進去) |
-| `results` | 每題的 `query()` 完整輸出(documents / answer / trace…) |
-| `error` | 失敗時的錯誤訊息,成功時是 `None` |
-
-把勝出組合存成 YAML,之後就能直接當設定檔用:
-
-```python
-import yaml
-
-best = max(records, key=my_score_function)
-with open("configs/winner.yaml", "w", encoding="utf-8") as f:
-    yaml.safe_dump(best["config"], f, allow_unicode=True)
-```
-
-```bash
-python scripts/run_demo.py --config configs/winner.yaml
-```
-
-## 7. 注意事項
+## 5. 注意事項
 
 ### a. 動到 ingestion 配置 + 用 Elasticsearch 時,每個組合要用不同的 index 名稱
 
