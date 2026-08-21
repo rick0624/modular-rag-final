@@ -160,7 +160,7 @@ log 檔的內容比終端機完整:
 ## 4. 連到有認證的 Elasticsearch
 
 本地開發、沒開 security 的 ES 不用帶憑證。
-公司或雲端叢集預設開著 security,沒帶憑證時第一個請求就會失敗:
+正式或雲端叢集預設開著 security,沒帶憑證時第一個請求就會失敗:
 
 ```
 AuthenticationException(401, 'security_exception',
@@ -190,7 +190,7 @@ indexing:
   設錯會在建 pipeline 時就報錯,不會拖到送請求才失敗。
 - 錯誤變成 `403` = 認證通了,但帳號權限不足
   (需要目標索引的 `create_index` / `read` / `write` 權限)。
-- 連線階段的 TLS 錯誤 = 用 `ca_certs` 指到公司的 CA 憑證。
+- 連線階段的 TLS 錯誤 = 用 `ca_certs` 指到 Online 環境的 CA 憑證。
 - 憑證也可以寫在 URL 裡(`https://user:pass@host:9200`),
   但 URL 常被記進 log,建議還是用上面的欄位。
 
@@ -240,7 +240,7 @@ generation 槽位的三個真實選項:
 
 - **`openai`**:官方 OpenAI,或任何相容服務(vLLM、Ollama、Groq…,
   用 `api_base_url` 指定)。金鑰預設讀環境變數 `OPENAI_API_KEY`。
-- **`gateway_openai_compatible`**:為公司內部閘道設計,有兩個特別行為:
+- **`gateway_openai_compatible`**:為 Online 系統的內部閘道設計,有兩個特別行為:
   - `model` 不設定時,請求**完全不帶**這個欄位(官方 SDK 做不到,
     有些閘道不接受 model 欄位)。
   - 遇到 OpenAI 推理模型(gpt-5 / o 系列)自動忽略 `temperature`、
@@ -343,7 +343,7 @@ README 的「新增自訂方法」講了最短路徑。這裡是完整規則,
 
 ## 11. 路 B:把方法加進框架型錄
 
-custom module(路 A)適合公司特定的邏輯。
+custom module(路 A)適合 Online 系統特定的邏輯。
 如果一個方法**夠通用、想讓所有人在 YAML 直接選用**,就走路 B:
 
 1. 寫元件(同路 A)。

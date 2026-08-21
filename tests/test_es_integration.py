@@ -1,6 +1,6 @@
 """Elasticsearch 整合測試(選配,預設排除)。
 
-    pip install -e ".[dev,company]"
+    pip install -e ".[dev,online]"
     ES_URL=http://<你的 ES 主機>:9200 python -m pytest -m es
 
 叢集有開 security 時,另外帶 ES_API_KEY 或 ES_USERNAME/ES_PASSWORD

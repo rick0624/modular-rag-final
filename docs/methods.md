@@ -5,8 +5,8 @@
 參數見下方[各方法參數](#各方法參數),完整範例見 `configs/default.yaml`
 (方法型錄),輸入輸出契約見 [interfaces.md](interfaces.md)。
 
-標記:🔌 需額外安裝公司整合依賴(`pip install -r requirements-company.txt`
-或 `pip install -e ".[company]"`);⛓ 該模組支援方法鏈
+標記:🔌 需額外安裝 Online 系統整合依賴(`pip install -r requirements-online.txt`
+或 `pip install -e ".[online]"`);⛓ 該模組支援方法鏈
 (`method: [a, b]` 依序執行)。
 
 ## Ingestion
@@ -14,7 +14,7 @@
 | 模組 | 方法 | 說明 |
 |---|---|---|
 | 1 Import | `local_file` | 掃描本地資料夾(txt / md / pdf,`extensions` 可收窄) |
-| | `custom` | 自訂來源(公司 DMS / API,文件可不落地) |
+| | `custom` | 自訂來源(Online 系統的 DMS / API,文件可不落地) |
 | 2 Parsing ⛓ | `plain_text` | 純文字檔(txt / md) |
 | | `pdf` | PDF(pypdf 文字層;掃描檔無文字層會出警告,需要 OCR 時走 custom converter) |
 | | `auto` | 依檔案類型自動分流(混合語料用這個) |
@@ -47,7 +47,7 @@
 | 7 Retrieval | `bm25` | 關鍵字檢索 |
 | | `embedding` | 向量檢索 |
 | | `hybrid` | BM25 + 向量,RRF 融合(`boost_k_factor` 可放大候選) |
-| | `custom` | 自訂檢索(如公司檢索 API,不吃本地索引) |
+| | `custom` | 自訂檢索(如 Online 系統的檢索 API,不吃本地索引) |
 | 8 Reranking ⛓ | `none` | 不重排 |
 | | `similarity` | cross-encoder 相似度重排 🔌 |
 | | `api_rerank` | 通用 HTTP rerank API(欄位名可對映) |
@@ -60,9 +60,9 @@
 | | `gateway_openai_compatible` | OpenAI 相容的內部閘道(可不帶 model 欄位) |
 | | `custom` | 非 OpenAI 相容的內部推論服務(prompt 仍由框架組) |
 | Routing(選填,省略 = 不做) | `keyword_match` | 關鍵字規則分類 |
-| | `custom` | 接公司分類模型 / 規則引擎 |
+| | `custom` | 接 Online 系統的分類模型 / 規則引擎 |
 | Formatter(選填,省略 = 不做) | `simple_json` | 通用 JSON 對外格式 |
-| | `custom` | 公司信封格式 |
+| | `custom` | Online 系統的信封格式 |
 
 ## Evaluation
 
@@ -304,4 +304,4 @@ parsing 的 `kind` 等)見各槽位表格。
   (`{method, params}`,吃 Generation 模組的任一方法);
   不設定時沿用 generation 槽位 —— 整條管線因此可以只接一個 LLM 來源。
 - **新增方法**:通用功能寫元件 + 在 `methods_ingestion.py` /
-  `methods_inference.py` 對應的 `*_FACTORIES` 加一行;公司特定邏輯直接寫 custom module,零框架改動。
+  `methods_inference.py` 對應的 `*_FACTORIES` 加一行;Online 系統特定的邏輯直接寫 custom module,零框架改動。
