@@ -108,6 +108,7 @@ custom_modules/             自訂元件的範例骨架(接 Online 系統時複�
 scripts/
   run_demo.py               主要執行入口:建索引 → 查詢 → 評估
   experiment.py             管線組合實驗(批次比較不同方法組合,見 docs/experiments.md)
+  validate.py               跑全部 1250 題 QA dataset 的完整驗證(自訂 evaluation)
   sample_data.py            demo 用的範例語料
 tests/                      測試(全部離線,不碰網路)
 docs/
@@ -197,6 +198,15 @@ trace / log / 分階段的完整說明,見 [docs/operations.md](docs/operations.
 的 `method`;所有可用方法與參數示範見 `configs/default.yaml` 型錄。
 ES 認證排錯、API 回應欄位對不上的對映設定,
 見 [docs/operations.md](docs/operations.md) 第 4–6 節。
+
+### 測試用的兩支腳本
+
+配置跑通之後,用這兩支腳本做完整測試:
+
+- `scripts/validate.py`:跑**全部 1250 題的 QA dataset** 做完整驗證,
+  以自訂的 evaluation 方法計分,用來確認 Online 配置的整體品質。
+- `scripts/experiment.py`:**測試各種不同方法與參數的組合**,
+  找出效果最好的配置;用法詳見 [docs/experiments.md](docs/experiments.md)。
 
 ## 新增自訂方法
 
