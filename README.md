@@ -3,8 +3,9 @@
 模組化 RAG(Retrieval-Augmented Generation,檢索增強生成)框架。
 
 - RAG 的流程:先從知識庫**檢索**相關內容,再把內容連同問題交給 LLM **生成**回答。
-- 本專案把這個流程拆成**十個主要模組**,每個模組有多種可換的方法。
+- 本專案的核心是**十個模組**,每個模組有多種可換的方法。
   換方法只要改 YAML 設定檔的一行,不用改程式。
+  另有三個選填模組(見下方模組表的說明)。
 - 底層引擎是 [Haystack 2.x](https://haystack.deepset.ai/):
   元件執行、檢索器、生成器等成熟實作都交給它,
   本專案只維護一層薄薄的「設定檔 → pipeline」轉譯與檢查邏輯。
@@ -59,11 +60,14 @@ python -m pytest
 
 **選填模組**(設定檔省略 = 不做):
 
-| 模組 | 做什麼 |
-|---|---|
-| fusion | 多個子查詢的結果融合;也能按文件/頁聚合 |
-| routing | 查詢分類(結果附在輸出上,不影響檢索) |
-| formatter | 把最終結果組成對外格式 |
+| 模組 | 做什麼 | 定位 |
+|---|---|---|
+| fusion | 多個子查詢的結果融合;也能按文件/頁聚合 | 多子查詢機制的內建融合步驟(查詢被拆解時必經) |
+| routing | 查詢分類(結果附在輸出上,不影響檢索) | 為整合 Online 系統而做 |
+| formatter | 把最終結果組成對外格式 | 為整合 Online 系統而做 |
+
+routing 與 formatter 是為了讓 Online 系統直接取用結果而加的支線;
+未來可以評估是否整併進十個核心模組(見文末[貢獻方向](#貢獻方向))。
 
 每個方法的參數與預設值,見 [docs/methods.md](docs/methods.md)。
 
@@ -74,6 +78,7 @@ configs/
   default.yaml              預設設定檔,也是「方法型錄」:所有方法與參數都展示在裡面
   custom_demo.yaml          custom 機制示範(inference 端)
   custom_ingestion_demo.yaml custom 機制示範(ingestion 端)
+  online_full_demo.yaml     Online 系統測試用:必要配置已設立完成,填金鑰即可跑
 rag/                        框架本體
   builder.py                核心:把設定檔轉成 Haystack pipeline
   methods_ingestion.py      ingestion 端方法型錄(方法名 → 元件)
@@ -95,22 +100,23 @@ rag/                        框架本體
     query_transforms.py     查詢改寫類元件(normalize / LLM 改寫 / 拆解…)
     llm_rerankers.py        InsertRank LLM 重排
     api_clients.py          通用 HTTP embedding / rerank 客戶端
-    gateway_generator.py    公司閘道 LLM 客戶端 + mock LLM
+    gateway_generator.py    Online 系統閘道 LLM 客戶端 + mock LLM
     mock_embedders.py       離線用的假 embedding
     pdf.py                  PDF 文字抽取(pypdf)
     side_branches.py        routing 與 formatter 元件
-custom_modules/             自訂元件的範例骨架(接公司系統時複製來改)
+custom_modules/             自訂元件的範例骨架(接 Online 系統時複製來改)
 scripts/
   run_demo.py               主要執行入口:建索引 → 查詢 → 評估
-  experiment.py             管線組合實驗(批次比較不同方法組合)
+  experiment.py             管線組合實驗(批次比較不同方法組合,見 docs/experiments.md)
   sample_data.py            demo 用的範例語料
 tests/                      測試(全部離線,不碰網路)
 docs/
   methods.md                所有方法與參數的完整型錄
   interfaces.md             custom 元件的輸入輸出契約
   operations.md             進階操作手冊(本 README 沒展開的細節都在這)
+  experiments.md            管線組合實驗指南(experiment.py 的用法與注意事項)
 requirements.txt            基本依賴(離線可跑)
-requirements-company.txt    公司系統整合依賴(Elasticsearch + sentence-transformers)
+requirements-online.txt     Online 系統整合依賴(Elasticsearch + sentence-transformers)
 .env.example                金鑰範本(複製成 .env 填入)
 ```
 
@@ -120,14 +126,14 @@ requirements-company.txt    公司系統整合依賴(Elasticsearch + sentence-tr
 
 ```bash
 pip install -r requirements.txt            # 基本:離線可跑,開發與測試夠用
-pip install -r requirements-company.txt    # 接公司環境再裝:ES + 本地模型
+pip install -r requirements-online.txt     # 接 Online 環境再裝:ES + 本地模型
 ```
 
 請在 repo 根目錄執行。`requirements.txt` 內含 `-e .`,會把 `rag` 套件
 本身也裝進環境——自己的腳本或 notebook 才能 `import rag`。
 
 也可以用套件形式安裝,效果相同:
-`pip install -e ".[dev]"` 或 `pip install -e ".[dev,company]"`。
+`pip install -e ".[dev]"` 或 `pip install -e ".[dev,online]"`。
 
 ## 執行、測試與實驗
 
@@ -147,7 +153,7 @@ python scripts/run_demo.py --stage inference            # 只查詢(索引沿用
 ```bash
 python -m pytest                                        # 全部測試(離線)
 ES_URL=http://<你的 ES>:9200 python -m pytest -m es      # ES 整合測試(選配)
-python scripts/experiment.py                            # 批次比較方法組合
+python scripts/experiment.py                            # 批次比較方法組合(詳見 docs/experiments.md)
 ```
 
 trace / log / 分階段的完整說明,見 [docs/operations.md](docs/operations.md)。
@@ -178,26 +184,23 @@ trace / log / 分階段的完整說明,見 [docs/operations.md](docs/operations.
 完整的方法與參數示範都在 [configs/default.yaml](configs/default.yaml),
 建議直接打開看,每個參數都有註解。
 
-## 接入公司系統 checklist
+## Online 系統套用此框架之測試方式
 
-1. 複製一份設定檔:`cp configs/default.yaml configs/my.yaml`
-2. 裝公司整合依賴:`pip install -r requirements-company.txt`
-3. 改 `my.yaml` 的三個模組(把 `method` 換掉,參數在對應的
-   `method_params` 區塊裡填,default.yaml 都有示範):
-   - `embedding` → `api_embedding`(公司 embedding API)
-   - `indexing` → `elasticsearch`(公司 ES 叢集)
-   - `generation` → `gateway_openai_compatible`(公司 LLM 閘道)
-   - 需要的話 `reranking` → `api_rerank`(公司 rerank API)
-4. 填金鑰:`cp .env.example .env`,填入 API 金鑰與 ES 連線資訊
-5. 建索引:`python scripts/run_demo.py --config configs/my.yaml --stage ingestion`
-6. 查詢:`python scripts/run_demo.py --config configs/my.yaml --stage inference --query "測試問題"`
+1. 設定檔選用 `configs/online_full_demo.yaml`:
+   Online 環境的必要配置(embedding API、ES 索引、LLM 閘道…)已設立完成
+2. 裝依賴套件:`pip install -r requirements-online.txt`
+3. 填金鑰:`cp .env.example .env`,填入 API 金鑰與 ES 連線資訊
+4. 建索引:`python scripts/run_demo.py --config configs/online_full_demo.yaml --stage ingestion`
+5. 查詢:`python scripts/run_demo.py --config configs/online_full_demo.yaml --stage inference --query "測試問題"`
 
+要調整組合(換方法、改參數)時,直接改 `online_full_demo.yaml` 對應模組
+的 `method`;所有可用方法與參數示範見 `configs/default.yaml` 型錄。
 ES 認證排錯、API 回應欄位對不上的對映設定,
 見 [docs/operations.md](docs/operations.md) 第 4–6 節。
 
 ## 新增自訂方法
 
-公司特有的邏輯(自家的檢索 API、切塊規則…)不用改框架,
+Online 系統特有的邏輯(自家的檢索 API、切塊規則…)不用改框架,
 寫一個元件掛上去就好:
 
 **1. 寫一個 Haystack 元件**(一個 `.py` 檔,放哪都行):
@@ -242,3 +245,22 @@ python scripts/run_demo.py --config configs/custom_ingestion_demo.yaml --trace
 完整規則(方法鏈限制、log 慣例、指紋影響…)與「把方法加進框架型錄」
 的作法,見 [docs/operations.md](docs/operations.md) 第 10–11 節;
 在自己的程式裡呼叫框架(Python API)見第 9 節。
+
+## 貢獻方向
+
+想參與開發的話,目前有四個明確的方向:
+
+1. **UI 層**:研究
+   [haystack-rag-app](https://github.com/deepset-ai/haystack-rag-app)
+   (deepset 官方的 Haystack RAG 前後端範例專案),
+   評估作為本框架 UI 層的可行性。
+2. **模組架構優化**:選填模組的整併與 pipeline 彈性化 ——
+   例如把 formatter 整併進 generation 模組、
+   讓 fusion 的擺放位置可以自由決定(更彈性地制定 pipeline)。
+3. **進階 RAG 架構整合**:Knowledge Graph(知識圖譜)、
+   其他 advanced RAG techniques 的引入。
+   通用的方法走「進框架型錄」路線,見上方[新增自訂方法](#新增自訂方法)。
+4. **實驗搜索方式優化**:配置組合實驗目前只有
+   one_at_a_time 與 product 全掃兩種模式(見
+   [docs/experiments.md](docs/experiments.md)),
+   可以引入更聰明的搜索策略(例如逐步收斂、早停)。

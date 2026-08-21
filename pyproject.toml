@@ -18,10 +18,10 @@ dependencies = [
 ]
 
 [project.optional-dependencies]
-# 公司系統整合(與 requirements-company.txt 同步):
+# Online 系統整合(與 requirements-online.txt 同步):
 # ES 索引 + 本地 sentence-transformers 模型(embedding 備援 / cross-encoder)。
 # sentence-transformers 元件自 Haystack 2.32 起移出 core,一律從整合套件 import。
-company = [
+online = [
     "elasticsearch-haystack>=6.3,<7",
     "sentence-transformers-haystack>=0.1.1,<0.2",
 ]

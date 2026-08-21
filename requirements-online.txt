@@ -1,7 +1,7 @@
-# 公司系統整合依賴:接公司環境(Elasticsearch 索引 + 本地模型備援)時
-# 在基本依賴之外加裝。與 pyproject.toml 的 [company] extra 同步。
+# Online 系統整合依賴:接 Online 環境(Elasticsearch 索引 + 本地模型備援)時
+# 在基本依賴之外加裝。與 pyproject.toml 的 [online] extra 同步。
 #
-#   pip install -r requirements.txt -r requirements-company.txt
+#   pip install -r requirements.txt -r requirements-online.txt
 
 # Elasticsearch 索引(indexing: elasticsearch;向量 + BM25 + filter 伺服器端)
 elasticsearch-haystack>=6.3,<7
