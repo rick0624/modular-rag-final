@@ -1,7 +1,11 @@
 # 基本依賴:離線可跑(mock embedding + in_memory 索引 + mock LLM),
 # 不需網路、金鑰或模型下載。與 pyproject.toml 的 dependencies + [dev] 同步。
 #
-#   pip install -r requirements.txt
+#   pip install -r requirements.txt      # 請在 repo 根目錄執行(下方 -e . 才裝得到)
+
+# 本專案自己(editable 安裝):裝了之後,自己的腳本 / notebook 才能
+# import rag(否則會遇到 No module named 'rag');改 rag/ 程式碼立即生效。
+-e .
 
 haystack-ai>=2.31,<3.0
 pydantic>=2.5

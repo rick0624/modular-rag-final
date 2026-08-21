@@ -272,7 +272,9 @@ hybrid 檢索放大候選(`boost_k_factor`)→ cross-encoder 收斂(`similarity`
 
 ## 9. 程式接入(Python API)
 
-不透過 CLI、直接在自己的程式裡使用框架:
+不透過 CLI、直接在自己的程式裡使用框架。前提:`rag` 套件已裝進環境
+(`pip install -r requirements.txt` 已包含,或單獨 `pip install -e .`;
+沒裝會遇到 `No module named 'rag'`):
 
 ```python
 from rag import build_pipelines, load_config
