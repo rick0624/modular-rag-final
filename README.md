@@ -208,6 +208,12 @@ ES 認證排錯、API 回應欄位對不上的對映設定,
 - `scripts/experiment.py`:**測試各種不同方法與參數的組合**,
   找出效果最好的配置;用法詳見 [docs/experiments.md](docs/experiments.md)。
 
+資料放置位置(兩支腳本預設讀這裡):
+
+- input data(要建索引的原始文件)放在 `data/csv/` 底下
+- QA dataset 放在 `scripts/mvp/` 底下
+- 不想放這些預設位置也可以,改腳本內的檔案路徑即可
+
 ## 新增自訂方法
 
 Online 系統特有的邏輯(自家的檢索 API、切塊規則…)不用改框架,
