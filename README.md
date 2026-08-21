@@ -123,6 +123,9 @@ pip install -r requirements.txt            # 基本:離線可跑,開發與測試
 pip install -r requirements-company.txt    # 接公司環境再裝:ES + 本地模型
 ```
 
+請在 repo 根目錄執行。`requirements.txt` 內含 `-e .`,會把 `rag` 套件
+本身也裝進環境——自己的腳本或 notebook 才能 `import rag`。
+
 也可以用套件形式安裝,效果相同:
 `pip install -e ".[dev]"` 或 `pip install -e ".[dev,company]"`。
 
